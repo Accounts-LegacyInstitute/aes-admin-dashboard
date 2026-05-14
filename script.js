@@ -181,20 +181,25 @@ async function sendVerificationCode() {
     sendBtn.innerHTML = '<span class="spinner"></span> Sending...';
 
     try {
-        const response = await fetch(`${APPS_SCRIPT_URL}?action=sendVerificationCode&email=${encodeURIComponent(currentUser.email)}`);
+        const url = `${APPS_SCRIPT_URL}?action=sendVerificationCode&email=${encodeURIComponent(currentUser.email)}`;
+        console.log('Sending code to:', url);
+
+        const response = await fetch(url);
         const result = await response.json();
+        console.log('Response:', result);
 
         if (result.success) {
             verificationCode = result.code;
             codeSent = true;
             showCodeInputSection();
         } else {
-            alert('Failed to send verification code. Please try again.');
+            alert('Failed: ' + (result.error || 'Unknown error'));
             sendBtn.disabled = false;
             sendBtn.innerHTML = '<i class="bx bx-send"></i> Send Verification Code';
         }
     } catch (error) {
-        alert('Connection error. Please check your internet connection.');
+        console.error('Error:', error);
+        alert('Connection error: ' + error.message);
         sendBtn.disabled = false;
         sendBtn.innerHTML = '<i class="bx bx-send"></i> Send Verification Code';
     }
