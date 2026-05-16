@@ -140,14 +140,25 @@ async function handleAuthResponse(hash) {
 
 // Handle post-login flow
 function handlePostLogin() {
-    // Check if user is admin
     if (currentUser.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
         showUnauthorizedScreen();
         return;
     }
 
-    // Start email verification
-    showEmailVerification();
+    // Check if Google auth is fresh (less than 5 minutes old)
+    const tokenExpiry = localStorage.getItem('admin_token_expiry');
+    const now = new Date().getTime();
+    const authAge = tokenExpiry ? (parseInt(tokenExpiry) - now) / 1000 : 0;
+
+    // Google tokens typically last 1 hour (3600 seconds)
+    // If more than 55 minutes have passed, require re-verification
+    if (authAge < 300) {
+        // Token is fresh (logged in within last 5 minutes), skip email verification
+        showPasskeyVerification();
+    } else {
+        // Token is old or about to expire, require email verification
+        showEmailVerification();
+    }
 }
 
 // Show email verification screen
@@ -182,24 +193,19 @@ async function sendVerificationCode() {
 
     try {
         const url = `${APPS_SCRIPT_URL}?action=sendVerificationCode&email=${encodeURIComponent(currentUser.email)}`;
-        console.log('Sending code to:', url);
-
         const response = await fetch(url);
         const result = await response.json();
-        console.log('Response:', result);
 
         if (result.success) {
-            verificationCode = result.code;
             codeSent = true;
             showCodeInputSection();
         } else {
-            alert('Failed: ' + (result.error || 'Unknown error'));
+            alert(result.error || 'Failed to send code');
             sendBtn.disabled = false;
             sendBtn.innerHTML = '<i class="bx bx-send"></i> Send Verification Code';
         }
     } catch (error) {
-        console.error('Error:', error);
-        alert('Connection error: ' + error.message);
+        alert('Connection error. Please try again.');
         sendBtn.disabled = false;
         sendBtn.innerHTML = '<i class="bx bx-send"></i> Send Verification Code';
     }
@@ -314,34 +320,61 @@ async function resendCode() {
 }
 
 // Verify code
-function verifyCode() {
+async function verifyCode() {
     let enteredCode = '';
     for (let i = 0; i < 8; i++) {
         enteredCode += document.getElementById(`code${i}`).value;
     }
 
     const errorEl = document.getElementById('codeError');
+    const confirmBtn = document.getElementById('confirmCodeBtn');
 
-    if (enteredCode === verificationCode) {
-        isEmailVerified = true;
-        document.getElementById('modalOverlay').classList.remove('active');
-        showPasskeyVerification();
-    } else {
-        errorEl.style.display = 'block';
-        errorEl.style.color = 'var(--danger)';
-        errorEl.textContent = 'Invalid verification code. Please try again.';
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<span class="spinner"></span> Verifying...';
 
-        // Clear inputs
-        for (let i = 0; i < 8; i++) {
-            document.getElementById(`code${i}`).value = '';
-            document.getElementById(`code${i}`).classList.remove('filled');
+    try {
+        const url = `${APPS_SCRIPT_URL}?action=verifyCode&email=${encodeURIComponent(currentUser.email)}&code=${enteredCode}`;
+        const response = await fetch(url);
+        const result = await response.json();
+
+        if (result.success) {
+            isEmailVerified = true;
+            document.getElementById('modalOverlay').classList.remove('active');
+            showPasskeyVerification();
+        } else {
+            errorEl.style.display = 'block';
+            errorEl.textContent = result.error || 'Invalid code';
+            clearCodeInputs();
         }
-        document.getElementById('code0').focus();
-        document.getElementById('confirmCodeBtn').disabled = true;
+    } catch (error) {
+        errorEl.style.display = 'block';
+        errorEl.textContent = 'Verification failed. Please try again.';
+        clearCodeInputs();
+    } finally {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="bx bx-check"></i> Confirm Code';
     }
 }
 
+function clearCodeInputs() {
+    for (let i = 0; i < 8; i++) {
+        document.getElementById(`code${i}`).value = '';
+        document.getElementById(`code${i}`).classList.remove('filled');
+    }
+    document.getElementById('code0').focus();
+    document.getElementById('confirmCodeBtn').disabled = true;
+}
+
 // Show passkey verification
+const PASSKEY_GIFS = [
+    'https://res.cloudinary.com/dhkswq6td/image/upload/v1776421272/GIF_001_xoghff.gif',
+    'https://res.cloudinary.com/dhkswq6td/image/upload/v1776421267/GIF_002_i2ch3v.gif',
+    'https://res.cloudinary.com/dhkswq6td/image/upload/v1776421267/GIF_003_gy2k49.gif'
+];
+
+let gifAnimationInterval = null;
+let currentGifIndex = 0;
+
 function showPasskeyVerification() {
     const overlay = document.getElementById('modalOverlay');
     const container = document.getElementById('modalContainer');
@@ -349,37 +382,92 @@ function showPasskeyVerification() {
     const deviceId = getDeviceId();
     const passkeyRegistered = localStorage.getItem(`admin_passkey_${deviceId}`);
 
+    overlay.classList.add('active');
+
     if (passkeyRegistered === 'true') {
-        // Verify existing passkey
         container.innerHTML = `
-      <div class="passkey-content">
-        <i class='bx bx-fingerprint passkey-icon'></i>
-        <h2>Verify Your Identity</h2>
-        <p class="description">
-          Please authenticate using your device passkey to access the admin dashboard.
-        </p>
-        <button class="send-code-btn" onclick="verifyPasskey()">
-          <i class='bx bx-shield-quarter'></i> Verify with Passkey
+      <div class="modal-content verification-modal">
+        <h2 class="modal-title">Verify It's You</h2>
+        <p class="modal-description">Please verify your identity using your saved passkey for Admin Dashboard access.</p>
+        
+        <div class="animation-container">
+          <i class='bx bx-shield-quarter verification-icon' id="verificationIcon"></i>
+        </div>
+        
+        <button class="passkey-btn" id="verifyPasskeyBtn">
+          <i class='bx bx-fingerprint' style="font-size: 24px;"></i>
+          Verify with Passkey
         </button>
+        
+        <p class="skip-text" id="skipVerification">Having trouble? Try again later</p>
       </div>
     `;
+
+        document.getElementById('verifyPasskeyBtn').addEventListener('click', verifyPasskey);
+        document.getElementById('skipVerification').addEventListener('click', () => {
+            clearAuth();
+            overlay.classList.remove('active');
+            renderLoginScreen();
+        });
+
+        if (isMobileDevice()) {
+            setTimeout(verifyPasskey, 500);
+        }
     } else {
-        // Register new passkey
         container.innerHTML = `
-      <div class="passkey-content">
-        <i class='bx bx-key passkey-icon'></i>
-        <h2>Register a Passkey</h2>
-        <p class="description">
-          Set up a device passkey for secure access to the admin dashboard.
-        </p>
-        <button class="send-code-btn" onclick="registerPasskey()">
-          <i class='bx bx-fingerprint'></i> Register Passkey
-        </button>
+      <div class="modal-content">
+        <h2 class="modal-title">Register a Passkey</h2>
+        <p class="modal-description">Secure your admin dashboard access with a device passkey. This additional verification layer ensures only you can access sensitive administrative functions and maintains enterprise-grade security.</p>
+        
+        <div class="animation-container" id="animationContainer">
+          <img src="${PASSKEY_GIFS[0]}" alt="Passkey Setup" class="passkey-gif active" id="gif1">
+          <img src="${PASSKEY_GIFS[1]}" alt="Passkey Setup" class="passkey-gif" id="gif2">
+          <img src="${PASSKEY_GIFS[2]}" alt="Passkey Setup" class="passkey-gif" id="gif3">
+        </div>
+        
+        <button class="passkey-btn" id="registerPasskeyBtn">Register Passkey</button>
       </div>
     `;
+
+        startGifAnimation();
+        document.getElementById('registerPasskeyBtn').addEventListener('click', registerPasskey);
+    }
+}
+
+function startGifAnimation() {
+    const gifs = [
+        document.getElementById('gif1'),
+        document.getElementById('gif2'),
+        document.getElementById('gif3')
+    ];
+
+    if (!gifs[0]) return;
+
+    const timings = [3000, 6000, 5000];
+    currentGifIndex = 0;
+
+    function showNextGif() {
+        if (!gifs[currentGifIndex]) return;
+
+        const currentGif = gifs[currentGifIndex];
+        const nextIndex = (currentGifIndex + 1) % gifs.length;
+        const nextGif = gifs[nextIndex];
+
+        currentGif.classList.add('zoom-out');
+
+        setTimeout(() => {
+            currentGif.classList.remove('active', 'zoom-out');
+            nextGif.classList.add('active');
+            currentGifIndex = nextIndex;
+            gifAnimationInterval = setTimeout(showNextGif, timings[currentGifIndex]);
+        }, 500);
     }
 
-    overlay.classList.add('active');
+    gifAnimationInterval = setTimeout(showNextGif, timings[0]);
+}
+
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
 // Get device ID
