@@ -121,11 +121,12 @@ async function handleAuthResponse(hash) {
 
             const userData = await response.json();
 
-            // Store auth
             const expiryTime = new Date().getTime() + (parseInt(expiresIn) * 1000);
             localStorage.setItem('admin_token', accessToken);
             localStorage.setItem('admin_token_expiry', expiryTime.toString());
             localStorage.setItem('admin_user', JSON.stringify(userData));
+
+            sessionStorage.setItem('admin_fresh_login', 'true');
 
             currentUser = userData;
             isAuthenticated = true;
@@ -139,25 +140,24 @@ async function handleAuthResponse(hash) {
 }
 
 // Handle post-login flow
-function handlePostLogin() {
+async function handlePostLogin() {
+    // Check if user is admin
     if (currentUser.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
         showUnauthorizedScreen();
         return;
     }
 
-    // Check if Google auth is fresh (less than 5 minutes old)
-    const tokenExpiry = localStorage.getItem('admin_token_expiry');
-    const now = new Date().getTime();
-    const authAge = tokenExpiry ? (parseInt(tokenExpiry) - now) / 1000 : 0;
+    // Check if this is a FRESH Google login (just authenticated)
+    const isFreshLogin = sessionStorage.getItem('admin_fresh_login') === 'true';
 
-    // Google tokens typically last 1 hour (3600 seconds)
-    // If more than 55 minutes have passed, require re-verification
-    if (authAge < 300) {
-        // Token is fresh (logged in within last 5 minutes), skip email verification
-        showPasskeyVerification();
-    } else {
-        // Token is old or about to expire, require email verification
+    if (isFreshLogin) {
+        // Clear the flag
+        sessionStorage.removeItem('admin_fresh_login');
+        // New login = require email verification
         showEmailVerification();
+    } else {
+        // Returning user with valid token = skip to passkey
+        showPasskeyVerification();
     }
 }
 
