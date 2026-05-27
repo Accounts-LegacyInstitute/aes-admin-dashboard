@@ -1133,6 +1133,29 @@ function setupDashboardEvents() {
         item.addEventListener('click', function () {
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             this.classList.add('active');
+
+            // Handle page switching
+            const page = this.getAttribute('data-page');
+            switch (page) {
+                case 'dashboard':
+                    showDashboard();
+                    break;
+                case 'salary':
+                    showSalaryReports();
+                    break;
+                case 'employees':
+                    // Future implementation
+                    break;
+                case 'attendance':
+                    // Future implementation
+                    break;
+                case 'performance':
+                    // Future implementation
+                    break;
+                case 'settings':
+                    // Future implementation
+                    break;
+            }
         });
     });
 
@@ -1141,6 +1164,19 @@ function setupDashboardEvents() {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', logoutAdmin);
     }
+}
+
+function showDashboard() {
+    // Remove salary section if exists
+    const salarySection = document.getElementById('salarySection');
+    if (salarySection) {
+        salarySection.remove();
+    }
+
+    // Show dashboard elements
+    document.querySelectorAll('.dashboard-row, .stats-grid').forEach(el => {
+        el.style.display = '';
+    });
 }
 
 async function loadDashboardData() {
@@ -1255,19 +1291,21 @@ if (window.opener) {
 // Salary Report Generator
 function showSalaryReports() {
     // Hide all dashboard elements
-    document.querySelectorAll('.dashboard-row, .stats-grid').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.dashboard-row, .stats-grid').forEach(el => {
+        el.style.display = 'none';
+    });
 
-    // Get or create salary section
-    let salarySection = document.getElementById('salarySection');
-
-    if (!salarySection) {
-        salarySection = document.createElement('div');
-        salarySection.id = 'salarySection';
-        salarySection.className = 'salary-generator-container';
-        document.querySelector('.main-content').appendChild(salarySection);
+    // Remove existing salary section if any
+    const existingSection = document.getElementById('salarySection');
+    if (existingSection) {
+        existingSection.remove();
     }
 
-    salarySection.style.display = 'flex';
+    // Create salary section
+    const salarySection = document.createElement('div');
+    salarySection.id = 'salarySection';
+    salarySection.className = 'salary-generator-container';
+
     salarySection.innerHTML = `
     <div class="salary-hero">
       <img src="https://res.cloudinary.com/dhkswq6td/image/upload/v1765611889/Receipt_Format_hunxj7.png" 
@@ -1279,6 +1317,9 @@ function showSalaryReports() {
       </button>
     </div>
   `;
+
+    // Append to main content
+    document.querySelector('.main-content').appendChild(salarySection);
 }
 
 // Open salary generation dialog
