@@ -562,7 +562,7 @@ body {
     }
 }
 
-/* Passkey Modal Styles (Copied from Attendance System) */
+/* Passkey Modal Styles */
 .modal-content {
     display: flex;
     flex-direction: column;

@@ -607,51 +607,163 @@ function retryAdminLogin() {
 
 // Render admin dashboard
 function renderDashboard() {
+    const now = new Date();
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const formattedDate = now.toLocaleDateString('en-US', options);
+
     document.getElementById('mainContainer').innerHTML = `
-    <div class="dashboard-screen">
-      <div class="dashboard-header">
-        <h1><i class='bx bx-shield-quarter'></i> Admin Dashboard</h1>
-        <div class="admin-profile">
-          <img src="${currentUser.picture || 'default-avatar.png'}" alt="Admin">
-          <div class="admin-info">
-            <h3>${currentUser.name}</h3>
-            <p>Administrator</p>
-          </div>
-          <button class="logout-btn" onclick="logoutAdmin()">
-            <i class='bx bx-log-out'></i> Logout
-          </button>
+    <!-- Sidebar navigation -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <img class="header-image" src="https://res.cloudinary.com/dhkswq6td/image/upload/v1765611889/Receipt_Format_hunxj7.png" alt="institute-logo">
         </div>
-      </div>
-      
-      <div class="dashboard-content">
-        <div class="stat-card" onclick="loadSalaryGenerator()">
-          <i class='bx bx-money'></i>
-          <h3>Generate Salaries</h3>
-          <p>Calculate and generate staff salary reports</p>
+        <nav class="nav-menu">
+            <div class="nav-item active" data-page="dashboard"><i class="fas fa-th-large"></i> Dashboard</div>
+            <div class="nav-item" data-page="employees"><i class="fas fa-users"></i> All Employees</div>
+            <div class="nav-item" data-page="salary"><i class="fas fa-user-plus"></i> Salary Reports</div>
+            <div class="nav-item" data-page="attendance"><i class="fas fa-calendar-check"></i> Attendance Log</div>
+            <div class="nav-item" data-page="performance"><i class="fas fa-chart-bar"></i> Performance</div>
+            <div class="nav-item" data-page="settings"><i class="fas fa-cog"></i> Settings</div>
+        </nav>
+        <div class="sidebar-footer">
+            <i class="far fa-circle"></i> Staff Management Admin Dashboard • <span>by Aaqib's DevDesk</span>
         </div>
-        
-        <div class="stat-card" onclick="loadStaffOverview()">
-          <i class='bx bx-group'></i>
-          <h3>Staff Overview</h3>
-          <p>View all staff attendance records</p>
+    </aside>
+
+    <!-- Main Dashboard -->
+    <main class="main-content">
+        <div class="top-bar">
+            <div class="page-title">
+                <h1>Staff Management Admin Dashboard</h1>
+                <p><i class="far fa-calendar-alt"></i> ${formattedDate} · Real-time overview</p>
+            </div>
+            <div class="user-profile">
+                <i class="far fa-bell"></i>
+                <img src="${currentUser.picture || ''}" class="avatar" style="width:38px;height:38px;border-radius:50%;object-fit:cover;" 
+                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                <div class="avatar" style="display:none;background:#0f172a;color:white;width:38px;height:38px;border-radius:50%;align-items:center;justify-content:center;font-weight:bold;">
+                  ${(currentUser.name || 'A').charAt(0).toUpperCase()}
+                </div>
+                <span style="font-weight:500;">${currentUser.name || 'Admin'}<br><role>Dashboard Admin</role></span>
+                <i class="fas fa-sign-out-alt" id="logoutAdminBtn" style="cursor:pointer;font-size:1rem;color:#ef4444;" title="Logout"></i>
+            </div>
         </div>
-        
-        <div class="stat-card" onclick="loadReports()">
-          <i class='bx bx-file'></i>
-          <h3>Reports</h3>
-          <p>Generate detailed attendance reports</p>
+
+        <!-- Stats overview -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-info">
+                    <h3>Total Staff</h3>
+                    <div class="stat-number" id="totalStaff">--</div>
+                    <span style="color:#16a34a; font-size:0.8rem;">Loading...</span>
+                </div>
+                <div class="stat-icon"><i class="fas fa-user-tie"></i></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-info">
+                    <h3>Sessions Today</h3>
+                    <div class="stat-number" id="sessionsToday">--</div>
+                    <span style="color:#2563eb; font-size:0.8rem;">Loading...</span>
+                </div>
+                <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-info">
+                    <h3>Active Sessions</h3>
+                    <div class="stat-number" id="activeSessions">--</div>
+                    <span style="color:#d97706; font-size:0.8rem;">Loading...</span>
+                </div>
+                <div class="stat-icon"><i class="fas fa-plane-departure"></i></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-info">
+                    <h3>Last Report Generated</h3>
+                    <div class="stat-number" id="lastReport">--</div>
+                    <span style="color:#7c3aed; font-size:0.8rem;">Loading...</span>
+                </div>
+                <div class="stat-icon"><i class="fas fa-briefcase"></i></div>
+            </div>
         </div>
-        
-        <div class="stat-card" onclick="loadSettings()">
-          <i class='bx bx-cog'></i>
-          <h3>Settings</h3>
-          <p>Manage system configuration</p>
+
+        <!-- Charts and table row -->
+        <div class="dashboard-row">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Staff by Role</h2>
+                    <span class="badge">Current 2026</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="deptChart" width="400" height="180"></canvas>
+                </div>
+                <div style="display:flex; justify-content:center; gap:24px; margin-top:12px; font-size:0.8rem; color:#475569;">
+                    <span><span style="background:#2563eb; display:inline-block; width:10px; height:10px; border-radius:2px;"></span> Engineering</span>
+                    <span><span style="background:#16a34a; display:inline-block; width:10px; height:10px;"></span> Marketing</span>
+                    <span><span style="background:#d97706; display:inline-block; width:10px; height:10px;"></span> Sales</span>
+                    <span><span style="background:#9333ea; display:inline-block; width:10px; height:10px;"></span> HR</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>Recent Sessions</h2>
+                    <button class="btn-outline" id="viewAllBtn">View All <i class="fas fa-arrow-right"></i></button>
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>Employee</th><th>Date</th><th>Status</th><th>Check-in</th></tr>
+                    </thead>
+                    <tbody id="recentSessionsBody">
+                        <tr><td colspan="4" style="text-align:center;color:#94a3b8;">Loading sessions...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
-      </div>
-      
-      <div id="dynamicContent" class="salary-section" style="display:none;"></div>
-    </div>
+
+        <!-- Team Performance and Onboarding -->
+        <div class="dashboard-row">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Team Performance</h2>
+                    <i class="fas fa-ellipsis-h" style="color:#64748b;"></i>
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>Employee</th><th>Hours This Month</th><th>Sessions</th></tr>
+                    </thead>
+                    <tbody id="performanceBody">
+                        <tr><td colspan="3" style="text-align:center;color:#94a3b8;">Loading performance data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>Salary Generation</h2>
+                    <span class="badge">Quick Actions</span>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:12px; padding:10px 0;">
+                    <button class="btn-outline" onclick="generateMonthlyReport()" style="width:100%;text-align:left;">
+                        <i class="fas fa-file-invoice"></i> Generate Monthly Salary Report
+                    </button>
+                    <button class="btn-outline" onclick="exportAttendanceData()" style="width:100%;text-align:left;">
+                        <i class="fas fa-download"></i> Export Attendance Data
+                    </button>
+                    <button class="btn-outline" onclick="viewStaffList()" style="width:100%;text-align:left;">
+                        <i class="fas fa-list"></i> View All Staff Records
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
   `;
+
+    addDashboardStyles();
+
+    setupDashboardEvents();
+
+    loadDashboardData();
+
+    setTimeout(initChart, 300);
 }
 
 // Load salary generator
@@ -723,6 +835,406 @@ function checkOAuthCallback() {
         handleAuthResponse(hash);
         window.history.replaceState({}, document.title, window.location.pathname);
     }
+}
+
+function addDashboardStyles() {
+    const styleId = 'admin-dashboard-styles';
+    if (document.getElementById(styleId)) return;
+
+    const styleEl = document.createElement('style');
+    styleEl.id = styleId;
+    styleEl.textContent = `
+    .container {
+      max-width: 100% !important;
+      height: 100vh !important;
+      border-radius: 0 !important;
+      padding: 0 !important;
+      background: #f4f6fa !important;
+      display: flex !important;
+      flex-direction: row !important;
+    }
+    
+    .sidebar {
+      width: 260px;
+      background: #8cb300;
+      color: #252525;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 4px 0 12px rgba(0, 0, 0, 0.06);
+      height: 100vh;
+      flex-shrink: 0;
+    }
+    
+    .sidebar-header {
+      padding: 28px 20px 20px;
+      font-size: 1.5rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid rgba(11, 11, 11, 0.08);
+    }
+    
+    .header-image {
+      max-width: 100%;
+      height: auto;
+    }
+    
+    .nav-menu {
+      flex: 1;
+      padding: 20px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 18px;
+      border-radius: 10px;
+      color: #222222;
+      font-weight: 500;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    
+    .nav-item i {
+      width: 22px;
+      font-size: 1.2rem;
+      text-align: center;
+    }
+    
+    .nav-item.active {
+      background: #164f00;
+      color: white;
+      font-weight: 600;
+    }
+    
+    .nav-item.active i { color: #ffffff; }
+    
+    .nav-item:not(.active):hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .sidebar-footer {
+      padding: 20px 18px 28px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.85rem;
+      color: #383838;
+    }
+    
+    .main-content {
+      flex: 1;
+      padding: 24px 28px 32px;
+      overflow-y: auto;
+      background: #8cb3006c;
+    }
+    
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    
+    .page-title h1 {
+      font-size: 1.9rem;
+      font-weight: 650;
+      color: #0f172a;
+    }
+    
+    .page-title p {
+      color: #475569;
+      font-size: 0.9rem;
+      margin-top: 4px;
+    }
+    
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: white;
+      padding: 8px 18px;
+      border-radius: 40px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+      border: 1px solid #e2e8f0;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+    
+    .stat-card {
+      background: white;
+      border-radius: 18px;
+      padding: 20px 18px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.02);
+      border: 1px solid #edf2f7;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .stat-info h3 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    
+    .stat-number {
+      font-size: 2.3rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    
+    .stat-icon {
+      background: #eef2ff;
+      color: #1e3a8a;
+      padding: 14px;
+      border-radius: 14px;
+      font-size: 1.7rem;
+    }
+    
+    .dashboard-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 20px 20px 24px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.02);
+      border: 1px solid #e9eef3;
+    }
+    
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+    
+    .card-header h2 {
+      font-size: 1.2rem;
+      font-weight: 650;
+      color: #0f172a;
+    }
+    
+    .badge {
+      background: #e0f2fe;
+      color: #0369a1;
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 30px;
+      font-weight: 600;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    th {
+      text-align: left;
+      padding: 12px 6px 10px 0;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #475569;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    
+    td {
+      padding: 12px 6px 12px 0;
+      font-size: 0.9rem;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    
+    .status.present { background: #dcfce7; color: #15803d; }
+    .status.away { background: #fef9c3; color: #854d0e; }
+    .status.offline { background: #f1f5f9; color: #475569; }
+    
+    .chart-container {
+      height: 240px;
+      position: relative;
+      margin-top: 10px;
+    }
+    
+    .btn-outline {
+      background: transparent;
+      border: 1px solid #cbd5e1;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #334155;
+      cursor: pointer;
+    }
+    
+    .btn-outline:hover {
+      background: #f1f5f9;
+    }
+    
+    .progress-bar {
+      width: 70px;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: #2563eb;
+    }
+    
+    .footer-note {
+      margin-top: 16px;
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+    
+    hr {
+      border: 0.5px solid #e9eef3;
+      margin: 16px 0 8px;
+    }
+    
+    @media (max-width: 1000px) {
+      .dashboard-row { grid-template-columns: 1fr; }
+      .container { flex-direction: column !important; }
+      .sidebar { width: 100%; height: auto; }
+    }
+  `;
+    document.head.appendChild(styleEl);
+}
+
+function setupDashboardEvents() {
+    // Navigation
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', function () {
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+
+    // Logout
+    const logoutBtn = document.getElementById('logoutAdminBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', logoutAdmin);
+    }
+}
+
+async function loadDashboardData() {
+    try {
+        const response = await fetch(`${APPS_SCRIPT_URL}?action=getAllStaffHours`);
+        const result = await response.json();
+
+        if (result.success && result.staff) {
+            // Update stats
+            document.getElementById('totalStaff').textContent = result.staff.length;
+
+            // Count active sessions and sessions today
+            let activeCount = 0;
+            let todaySessions = 0;
+
+            result.staff.forEach(s => {
+                if (s.activeSession) activeCount++;
+                if (s.todaySessions) todaySessions += s.todaySessions;
+            });
+
+            document.getElementById('sessionsToday').textContent = todaySessions;
+            document.getElementById('activeSessions').textContent = activeCount;
+            document.getElementById('lastReport').textContent = '5th';
+
+            // Populate recent sessions
+            const sessionsBody = document.getElementById('recentSessionsBody');
+            const recentStaff = result.staff.slice(0, 5);
+
+            if (recentStaff.length > 0) {
+                sessionsBody.innerHTML = recentStaff.map(s => `
+          <tr>
+            <td><strong>${s.name}</strong></td>
+            <td>${s.lastDate || 'N/A'}</td>
+            <td><span class="status ${s.activeSession ? 'present' : 'offline'}">${s.activeSession ? 'Active' : 'Offline'}</span></td>
+            <td>${s.lastTimeIn || '—'}</td>
+          </tr>
+        `).join('');
+            }
+
+            // Populate performance
+            const perfBody = document.getElementById('performanceBody');
+            perfBody.innerHTML = result.staff.slice(0, 4).map(s => `
+        <tr>
+          <td><strong>${s.name}</strong></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(s.totalHours * 5, 100)}%"></div></div>
+              ${s.totalHours}h
+            </div>
+          </td>
+          <td>${s.sessionCount || 0} sessions</td>
+        </tr>
+      `).join('');
+        }
+    } catch (error) {
+        console.error('Failed to load dashboard data:', error);
+    }
+}
+
+function initChart() {
+    const ctx = document.getElementById('deptChart')?.getContext('2d');
+    if (!ctx) return;
+
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Engineering', 'Marketing', 'Sales', 'HR'],
+            datasets: [{
+                data: [102, 58, 63, 25],
+                backgroundColor: ['#2563eb', '#16a34a', '#d97706', '#9333ea'],
+                borderColor: 'white',
+                borderWidth: 2,
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: { display: false } },
+            cutout: '65%',
+        }
+    });
+}
+
+function generateMonthlyReport() {
+    alert('Salary report generation will be available soon.');
+}
+
+function exportAttendanceData() {
+    alert('Export functionality coming soon.');
+}
+
+function viewStaffList() {
+    alert('Staff list view coming soon.');
 }
 
 // Initialize
