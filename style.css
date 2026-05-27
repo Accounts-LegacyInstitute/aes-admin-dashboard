@@ -685,3 +685,252 @@ body {
         font-size: 140px;
     }
 }
+
+/* Salary Generator Styles */
+.salary-generator-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+    padding: 40px;
+}
+
+.salary-hero {
+    text-align: center;
+    max-width: 500px;
+}
+
+.salary-hero h2 {
+    font-family: var(--default-font);
+    font-size: 28px;
+    color: #0f172a;
+    margin-bottom: 10px;
+}
+
+.salary-hero p {
+    color: #64748b;
+    font-size: 15px;
+    line-height: 1.6;
+    margin-bottom: 25px;
+}
+
+.generate-report-btn {
+    background: #1a73e8;
+    color: white;
+    border: none;
+    padding: 14px 30px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.generate-report-btn:hover {
+    background: #1557b0;
+    transform: translateY(-2px);
+}
+
+/* Salary Dialog */
+.salary-dialog {
+    max-width: 550px;
+    width: 100%;
+}
+
+.salary-dialog h2 {
+    font-size: 22px;
+    color: #0f172a;
+    margin-bottom: 8px;
+}
+
+.dialog-desc {
+    color: #64748b;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    font-size: 14px;
+    color: #334155;
+    margin-bottom: 6px;
+}
+
+.styled-select,
+.styled-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    color: #1e293b;
+    background: white;
+    transition: all 0.2s;
+}
+
+.styled-select:focus,
+.styled-input:focus {
+    outline: none;
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+}
+
+.styled-select:disabled,
+.styled-input:disabled {
+    background: #f1f5f9;
+    cursor: not-allowed;
+}
+
+.form-row {
+    display: flex;
+    gap: 16px;
+}
+
+.form-group.half {
+    flex: 1;
+}
+
+.radio-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.radio-label input[type="radio"] {
+    margin-top: 2px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    margin-top: 3px;
+}
+
+.checkbox-label strong {
+    display: block;
+    font-size: 14px;
+    color: #334155;
+}
+
+.checkbox-label p {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 3px;
+    font-weight: 400;
+}
+
+.dialog-note {
+    background: #f0f7ff;
+    border-left: 4px solid #1a73e8;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #475569;
+    margin: 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dialog-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.btn-cancel {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.btn-generate {
+    background: #1a73e8;
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-generate:hover {
+    background: #1557b0;
+}
+
+/* Progress Dialog */
+.progress-dialog {
+    text-align: center;
+    padding: 30px;
+}
+
+.progress-dialog h3 {
+    font-size: 20px;
+    color: #0f172a;
+    margin-bottom: 10px;
+}
+
+.progress-dialog p {
+    color: #64748b;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #1a73e8, #4a90d9);
+    border-radius: 10px;
+    transition: width 0.5s ease;
+    width: 0%;
+}
+
+.progress-percent {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1a73e8;
+}
+
+/* Date input styling */
+.date-input {
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.date-input::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    filter: invert(0.5);
+}

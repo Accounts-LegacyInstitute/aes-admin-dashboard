@@ -1251,3 +1251,320 @@ if (window.opener) {
     }, '*');
     window.close();
 }
+
+// Salary Report Generator
+function showSalaryReports() {
+    // Hide all dashboard elements
+    document.querySelectorAll('.dashboard-row, .stats-grid').forEach(el => el.style.display = 'none');
+
+    // Get or create salary section
+    let salarySection = document.getElementById('salarySection');
+
+    if (!salarySection) {
+        salarySection = document.createElement('div');
+        salarySection.id = 'salarySection';
+        salarySection.className = 'salary-generator-container';
+        document.querySelector('.main-content').appendChild(salarySection);
+    }
+
+    salarySection.style.display = 'flex';
+    salarySection.innerHTML = `
+    <div class="salary-hero">
+      <img src="https://res.cloudinary.com/dhkswq6td/image/upload/v1765611889/Receipt_Format_hunxj7.png" 
+           alt="Salary Report" style="width:120px; margin-bottom:20px;">
+      <h2>Generate Salary Report</h2>
+      <p>Generate reports and summarize staff salary details. Click 'Generate Report' below to generate a new Salary Report with different criteria applied.</p>
+      <button class="generate-report-btn" onclick="openSalaryDialog()">
+        <i class="fas fa-file-invoice"></i> Generate Report
+      </button>
+    </div>
+  `;
+}
+
+// Open salary generation dialog
+async function openSalaryDialog() {
+    // Fetch roles and types
+    const roles = await fetchUniqueRoles();
+    const types = await fetchUniqueTypes();
+
+    const overlay = document.getElementById('modalOverlay');
+    const container = document.getElementById('modalContainer');
+
+    container.innerHTML = `
+    <div class="salary-dialog">
+      <h2>Generate Salary Report</h2>
+      <p class="dialog-desc">Sort and Filter out the following fields according to criteria to generate a full Staff(s) Salary Report.</p>
+      
+      <div class="form-group">
+        <label>Filter By Role:</label>
+        <select id="filterRole" class="styled-select">
+          <option value="">Select by Role</option>
+          <option value="all">All Roles</option>
+          ${roles.map(r => `<option value="${r}">${r}</option>`).join('')}
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label>Filter by Type:</label>
+        <select id="filterType" class="styled-select">
+          <option value="">Select by Type</option>
+          <option value="all">FT & PT</option>
+          ${types.map(t => `<option value="${t}">${t}</option>`).join('')}
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label class="radio-label">
+          <input type="radio" name="staffSelect" id="individualStaff" onchange="toggleIndividualStaff()">
+          Generate Salary Report Individually for:
+        </label>
+        <select id="selectStaff" class="styled-select" disabled>
+          <option value="">Select Staff</option>
+        </select>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group half">
+          <label>Date From:</label>
+          <input type="date" id="dateFrom" class="styled-input date-input">
+        </div>
+        <div class="form-group half">
+          <label>Date To:</label>
+          <input type="date" id="dateTo" class="styled-input date-input">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="sendToStaff">
+          <div>
+            <strong>Send Report to Staff via Email</strong>
+            <p>Checking this checkbox will send the respective salary report detail(s) to the respective staff(s) via email.</p>
+          </div>
+        </label>
+      </div>
+      
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="sendCopy">
+          <div>
+            <strong>Send myself a Copy</strong>
+            <p>Send the entire generated salary report to myself through email.</p>
+          </div>
+        </label>
+      </div>
+      
+      <div class="dialog-note">
+        <i class="fas fa-info-circle"></i>
+        Clicking on the 'Generate Report' button will generate a salary report within the given date range and staff filtering.
+      </div>
+      
+      <div class="dialog-buttons">
+        <button class="btn-cancel" onclick="closeDialog()">Cancel</button>
+        <button class="btn-generate" onclick="generateSalaryReport()">
+          <i class="fas fa-cog"></i> Generate Report
+        </button>
+      </div>
+    </div>
+  `;
+
+    overlay.classList.add('active');
+}
+
+// Toggle individual staff selection
+async function toggleIndividualStaff() {
+    const isIndividual = document.getElementById('individualStaff').checked;
+    const staffSelect = document.getElementById('selectStaff');
+    const filterRole = document.getElementById('filterRole');
+    const filterType = document.getElementById('filterType');
+
+    if (isIndividual) {
+        staffSelect.disabled = false;
+        filterRole.disabled = true;
+        filterType.disabled = true;
+
+        // Fetch all staff names
+        const staff = await fetchAllStaffNames();
+        staffSelect.innerHTML = '<option value="">Select Staff</option>' +
+            staff.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+    } else {
+        staffSelect.disabled = true;
+        filterRole.disabled = false;
+        filterType.disabled = false;
+        staffSelect.innerHTML = '<option value="">Select Staff</option>';
+    }
+}
+
+// Generate salary report
+async function generateSalaryReport() {
+    const filterRole = document.getElementById('filterRole').value;
+    const filterType = document.getElementById('filterType').value;
+    const isIndividual = document.getElementById('individualStaff').checked;
+    const selectStaff = document.getElementById('selectStaff').value;
+    const dateFrom = document.getElementById('dateFrom').value;
+    const dateTo = document.getElementById('dateTo').value;
+    const sendToStaff = document.getElementById('sendToStaff').checked;
+    const sendCopy = document.getElementById('sendCopy').checked;
+
+    // Validation
+    if (!isIndividual && !filterRole) {
+        alert('Please select a role filter.');
+        return;
+    }
+    if (!isIndividual && !filterType) {
+        alert('Please select a type filter.');
+        return;
+    }
+    if (isIndividual && !selectStaff) {
+        alert('Please select a staff member.');
+        return;
+    }
+    if (!dateFrom || !dateTo) {
+        alert('Please select date range.');
+        return;
+    }
+
+    // Show progress dialog
+    showProgressDialog();
+
+    // Prepare data
+    const params = new URLSearchParams();
+    params.append('action', 'generateSalaryReport');
+    params.append('filterRole', filterRole);
+    params.append('filterType', filterType);
+    params.append('isIndividual', isIndividual);
+    params.append('staffName', selectStaff);
+    params.append('dateFrom', dateFrom);
+    params.append('dateTo', dateTo);
+    params.append('sendToStaff', sendToStaff);
+    params.append('sendCopy', sendCopy);
+    params.append('adminEmail', currentUser.email);
+
+    try {
+        updateProgress(10, 'Initializing report generation...');
+
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body: params
+        });
+
+        updateProgress(30, 'Processing staff data...');
+
+        const result = await response.json();
+
+        if (result.success) {
+            updateProgress(70, 'Generating PDF report...');
+
+            // Poll for completion
+            await pollReportStatus(result.jobId);
+
+            updateProgress(100, 'Report generated successfully!');
+
+            setTimeout(() => {
+                closeProgressDialog();
+                closeDialog();
+                alert('Salary report generated successfully!');
+            }, 1500);
+        } else {
+            closeProgressDialog();
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        closeProgressDialog();
+        alert('Failed to generate report: ' + error.message);
+    }
+}
+
+// Show progress dialog
+function showProgressDialog() {
+    const overlay = document.getElementById('modalOverlay');
+    const container = document.getElementById('modalContainer');
+
+    container.innerHTML = `
+    <div class="progress-dialog">
+      <h3>Generating Salary Report</h3>
+      <p id="progressText">Initializing...</p>
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="progressFill"></div>
+      </div>
+      <p class="progress-percent" id="progressPercent">0%</p>
+    </div>
+  `;
+
+    overlay.classList.add('active');
+}
+
+// Update progress
+function updateProgress(percent, text) {
+    const fill = document.getElementById('progressFill');
+    const percentEl = document.getElementById('progressPercent');
+    const textEl = document.getElementById('progressText');
+
+    if (fill) fill.style.width = percent + '%';
+    if (percentEl) percentEl.textContent = percent + '%';
+    if (textEl) textEl.textContent = text;
+}
+
+// Close progress dialog
+function closeProgressDialog() {
+    document.getElementById('modalOverlay').classList.remove('active');
+}
+
+// Poll report status
+async function pollReportStatus(jobId) {
+    let attempts = 0;
+    const maxAttempts = 30;
+
+    while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        const response = await fetch(`${APPS_SCRIPT_URL}?action=checkReportStatus&jobId=${jobId}`);
+        const result = await response.json();
+
+        if (result.complete) {
+            updateProgress(100, 'Report generation complete!');
+            return;
+        }
+
+        updateProgress(30 + (attempts * 2), result.status || 'Processing...');
+        attempts++;
+    }
+}
+
+// Close dialog
+function closeDialog() {
+    document.getElementById('modalOverlay').classList.remove('active');
+}
+
+// Fetch unique roles
+async function fetchUniqueRoles() {
+    try {
+        const response = await fetch(`${APPS_SCRIPT_URL}?action=getUniqueRoles`);
+        const result = await response.json();
+        return result.success ? result.roles : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+// Fetch unique types
+async function fetchUniqueTypes() {
+    try {
+        const response = await fetch(`${APPS_SCRIPT_URL}?action=getUniqueTypes`);
+        const result = await response.json();
+        return result.success ? result.types : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+// Fetch all staff names
+async function fetchAllStaffNames() {
+    try {
+        const response = await fetch(`${APPS_SCRIPT_URL}?action=getAllStaffNames`);
+        const result = await response.json();
+        return result.success ? result.staff : [];
+    } catch (e) {
+        return [];
+    }
+}
