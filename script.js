@@ -612,158 +612,21 @@ function renderDashboard() {
     const formattedDate = now.toLocaleDateString('en-US', options);
 
     document.getElementById('mainContainer').innerHTML = `
-    <!-- Sidebar navigation -->
-    <aside class="sidebar">
-        <div class="sidebar-header">
-            <img class="header-image" src="https://res.cloudinary.com/dhkswq6td/image/upload/v1765611889/Receipt_Format_hunxj7.png" alt="institute-logo">
-        </div>
-        <nav class="nav-menu">
-            <div class="nav-item active" data-page="dashboard"><i class="fas fa-th-large"></i> Dashboard</div>
-            <div class="nav-item" data-page="employees"><i class="fas fa-users"></i> All Employees</div>
-            <div class="nav-item" data-page="salary"><i class="fas fa-user-plus"></i> Salary Reports</div>
-            <div class="nav-item" data-page="attendance"><i class="fas fa-calendar-check"></i> Attendance Log</div>
-            <div class="nav-item" data-page="performance"><i class="fas fa-chart-bar"></i> Performance</div>
-            <div class="nav-item" data-page="settings"><i class="fas fa-cog"></i> Settings</div>
-        </nav>
-        <div class="sidebar-footer">
-            <i class="far fa-circle"></i> Staff Management Admin Dashboard • <span>by Aaqib's DevDesk</span>
-        </div>
-    </aside>
-
-    <!-- Main Dashboard -->
-    <main class="main-content">
-        <div class="top-bar">
-            <div class="page-title">
-                <h1>Staff Management Admin Dashboard</h1>
-                <p><i class="far fa-calendar-alt"></i> ${formattedDate} · Real-time overview</p>
-            </div>
-            <div class="user-profile">
-                <i class="far fa-bell"></i>
-                <img src="${currentUser.picture || ''}" class="avatar" style="width:38px;height:38px;border-radius:50%;object-fit:cover;" 
-                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                <div class="avatar" style="display:none;background:#0f172a;color:white;width:38px;height:38px;border-radius:50%;align-items:center;justify-content:center;font-weight:bold;">
-                  ${(currentUser.name || 'A').charAt(0).toUpperCase()}
-                </div>
-                <span style="font-weight:500;">${currentUser.name || 'Admin'}<br><role>Dashboard Admin</role></span>
-                <i class="fas fa-sign-out-alt" id="logoutAdminBtn" style="cursor:pointer;font-size:1rem;color:#ef4444;" title="Logout"></i>
-            </div>
-        </div>
-
-        <!-- Stats overview -->
-        <div class="stats-grid" id="statsGrid">
-            <div class="stat-card">
-                <div class="stat-info">
-                    <h3>Total Staff</h3>
-                    <div class="stat-number" id="totalStaff">--</div>
-                    <span style="color:#16a34a; font-size:0.8rem;">Loading...</span>
-                </div>
-                <div class="stat-icon"><i class="fas fa-user-tie"></i></div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-info">
-                    <h3>Sessions Today</h3>
-                    <div class="stat-number" id="sessionsToday">--</div>
-                    <span style="color:#2563eb; font-size:0.8rem;">Loading...</span>
-                </div>
-                <div class="stat-icon"><i class="fas fa-user-check"></i></div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-info">
-                    <h3>Active Sessions</h3>
-                    <div class="stat-number" id="activeSessions">--</div>
-                    <span style="color:#d97706; font-size:0.8rem;">Loading...</span>
-                </div>
-                <div class="stat-icon"><i class="fas fa-plane-departure"></i></div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-info">
-                    <h3>Last Report Generated</h3>
-                    <div class="stat-number" id="lastReport">--</div>
-                    <span style="color:#7c3aed; font-size:0.8rem;">Loading...</span>
-                </div>
-                <div class="stat-icon"><i class="fas fa-briefcase"></i></div>
-            </div>
-        </div>
-
-        <!-- Charts and table row -->
-        <div class="dashboard-row">
-            <div class="card">
-                <div class="card-header">
-                    <h2>Staff by Role</h2>
-                    <span class="badge">Current 2026</span>
-                </div>
-                <div class="chart-container">
-                    <canvas id="deptChart" width="400" height="180"></canvas>
-                </div>
-                <div style="display:flex; justify-content:center; gap:24px; margin-top:12px; font-size:0.8rem; color:#475569;">
-                    <span><span style="background:#2563eb; display:inline-block; width:10px; height:10px; border-radius:2px;"></span> Engineering</span>
-                    <span><span style="background:#16a34a; display:inline-block; width:10px; height:10px;"></span> Marketing</span>
-                    <span><span style="background:#d97706; display:inline-block; width:10px; height:10px;"></span> Sales</span>
-                    <span><span style="background:#9333ea; display:inline-block; width:10px; height:10px;"></span> HR</span>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <h2>Recent Sessions</h2>
-                    <button class="btn-outline" id="viewAllBtn">View All <i class="fas fa-arrow-right"></i></button>
-                </div>
-                <table>
-                    <thead>
-                        <tr><th>Employee</th><th>Date</th><th>Status</th><th>Check-in</th></tr>
-                    </thead>
-                    <tbody id="recentSessionsBody">
-                        <tr><td colspan="4" style="text-align:center;color:#94a3b8;">Loading sessions...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Team Performance and Onboarding -->
-        <div class="dashboard-row">
-            <div class="card">
-                <div class="card-header">
-                    <h2>Team Performance</h2>
-                    <i class="fas fa-ellipsis-h" style="color:#64748b;"></i>
-                </div>
-                <table>
-                    <thead>
-                        <tr><th>Employee</th><th>Hours This Month</th><th>Sessions</th></tr>
-                    </thead>
-                    <tbody id="performanceBody">
-                        <tr><td colspan="3" style="text-align:center;color:#94a3b8;">Loading performance data...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <h2>Salary Generation</h2>
-                    <span class="badge">Quick Actions</span>
-                </div>
-                <div style="display:flex; flex-direction:column; gap:12px; padding:10px 0;">
-                    <button class="btn-outline" onclick="generateMonthlyReport()" style="width:100%;text-align:left;">
-                        <i class="fas fa-file-invoice"></i> Generate Monthly Salary Report
-                    </button>
-                    <button class="btn-outline" onclick="exportAttendanceData()" style="width:100%;text-align:left;">
-                        <i class="fas fa-download"></i> Export Attendance Data
-                    </button>
-                    <button class="btn-outline" onclick="viewStaffList()" style="width:100%;text-align:left;">
-                        <i class="fas fa-list"></i> View All Staff Records
-                    </button>
-                </div>
-            </div>
-        </div>
-    </main>
+    <div class="salary-generator-container" style="display:flex;justify-content:center;align-items:center;min-height:100%;padding:40px;width:100%;">
+      <div class="salary-hero" style="text-align:center;max-width:500px;">
+        <img src="https://res.cloudinary.com/dhkswq6td/image/upload/v1765611889/Receipt_Format_hunxj7.png" 
+             alt="Salary Report" style="width:120px;margin-bottom:20px;">
+        <h2 style="font-family:var(--default-font);font-size:28px;color:#0f172a;margin-bottom:10px;">Generate Salary Report</h2>
+        <p style="color:#64748b;font-size:15px;line-height:1.6;margin-bottom:25px;">Generate reports and summarize staff salary details. Click 'Generate Report' below to generate a new Salary Report with different criteria applied.</p>
+        <button class="generate-report-btn" onclick="openSalaryDialog()" style="background:#1a73e8;color:white;border:none;padding:14px 30px;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
+          <i class="fas fa-file-invoice"></i> Generate Report
+        </button>
+        <button class="logout-btn" onclick="logoutAdmin()" style="margin-top:20px;background:#ef4444;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px;">
+          <i class="bx bx-log-out"></i> Logout
+        </button>
+      </div>
+    </div>
   `;
-
-    addDashboardStyles();
-
-    setupDashboardEvents();
-
-    loadDashboardData();
-
-    setTimeout(initChart, 300);
 }
 
 // Load salary generator
@@ -1127,140 +990,6 @@ function addDashboardStyles() {
     document.head.appendChild(styleEl);
 }
 
-function setupDashboardEvents() {
-    // Navigation
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', function () {
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            this.classList.add('active');
-
-            // Handle page switching
-            const page = this.getAttribute('data-page');
-            switch (page) {
-                case 'dashboard':
-                    showDashboard();
-                    break;
-                case 'salary':
-                    showSalaryReports();
-                    break;
-                case 'employees':
-                    // Future implementation
-                    break;
-                case 'attendance':
-                    // Future implementation
-                    break;
-                case 'performance':
-                    // Future implementation
-                    break;
-                case 'settings':
-                    // Future implementation
-                    break;
-            }
-        });
-    });
-
-    // Logout
-    const logoutBtn = document.getElementById('logoutAdminBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', logoutAdmin);
-    }
-}
-
-function showDashboard() {
-    // Remove salary section if exists
-    const salarySection = document.getElementById('salarySection');
-    if (salarySection) {
-        salarySection.remove();
-    }
-
-    // Show dashboard elements
-    document.querySelectorAll('.dashboard-row, .stats-grid').forEach(el => {
-        el.style.display = '';
-    });
-}
-
-async function loadDashboardData() {
-    try {
-        const response = await fetch(`${APPS_SCRIPT_URL}?action=getAllStaffHours`);
-        const result = await response.json();
-
-        if (result.success && result.staff) {
-            // Update stats
-            document.getElementById('totalStaff').textContent = result.staff.length;
-
-            // Count active sessions and sessions today
-            let activeCount = 0;
-            let todaySessions = 0;
-
-            result.staff.forEach(s => {
-                if (s.activeSession) activeCount++;
-                if (s.todaySessions) todaySessions += s.todaySessions;
-            });
-
-            document.getElementById('sessionsToday').textContent = todaySessions;
-            document.getElementById('activeSessions').textContent = activeCount;
-            document.getElementById('lastReport').textContent = '5th';
-
-            // Populate recent sessions
-            const sessionsBody = document.getElementById('recentSessionsBody');
-            const recentStaff = result.staff.slice(0, 5);
-
-            if (recentStaff.length > 0) {
-                sessionsBody.innerHTML = recentStaff.map(s => `
-          <tr>
-            <td><strong>${s.name}</strong></td>
-            <td>${s.lastDate || 'N/A'}</td>
-            <td><span class="status ${s.activeSession ? 'present' : 'offline'}">${s.activeSession ? 'Active' : 'Offline'}</span></td>
-            <td>${s.lastTimeIn || '—'}</td>
-          </tr>
-        `).join('');
-            }
-
-            // Populate performance
-            const perfBody = document.getElementById('performanceBody');
-            perfBody.innerHTML = result.staff.slice(0, 4).map(s => `
-        <tr>
-          <td><strong>${s.name}</strong></td>
-          <td>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(s.totalHours * 5, 100)}%"></div></div>
-              ${s.totalHours}h
-            </div>
-          </td>
-          <td>${s.sessionCount || 0} sessions</td>
-        </tr>
-      `).join('');
-        }
-    } catch (error) {
-        console.error('Failed to load dashboard data:', error);
-    }
-}
-
-function initChart() {
-    const ctx = document.getElementById('deptChart')?.getContext('2d');
-    if (!ctx) return;
-
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Engineering', 'Marketing', 'Sales', 'HR'],
-            datasets: [{
-                data: [102, 58, 63, 25],
-                backgroundColor: ['#2563eb', '#16a34a', '#d97706', '#9333ea'],
-                borderColor: 'white',
-                borderWidth: 2,
-                borderRadius: 6,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: { legend: { display: false } },
-            cutout: '65%',
-        }
-    });
-}
-
 function generateMonthlyReport() {
     alert('Salary report generation will be available soon.');
 }
@@ -1288,43 +1017,8 @@ if (window.opener) {
     window.close();
 }
 
-// Salary Report Generator
-function showSalaryReports() {
-    // Hide all dashboard elements
-    document.querySelectorAll('.dashboard-row, .stats-grid').forEach(el => {
-        el.style.display = 'none';
-    });
-
-    // Remove existing salary section if any
-    const existingSection = document.getElementById('salarySection');
-    if (existingSection) {
-        existingSection.remove();
-    }
-
-    // Create salary section
-    const salarySection = document.createElement('div');
-    salarySection.id = 'salarySection';
-    salarySection.className = 'salary-generator-container';
-
-    salarySection.innerHTML = `
-    <div class="salary-hero">
-      <img src="https://res.cloudinary.com/dhkswq6td/image/upload/v1765611889/Receipt_Format_hunxj7.png" 
-           alt="Salary Report" style="width:120px; margin-bottom:20px;">
-      <h2>Generate Salary Report</h2>
-      <p>Generate reports and summarize staff salary details. Click 'Generate Report' below to generate a new Salary Report with different criteria applied.</p>
-      <button class="generate-report-btn" onclick="openSalaryDialog()">
-        <i class="fas fa-file-invoice"></i> Generate Report
-      </button>
-    </div>
-  `;
-
-    // Append to main content
-    document.querySelector('.main-content').appendChild(salarySection);
-}
-
 // Open salary generation dialog
 async function openSalaryDialog() {
-    // Fetch roles and types
     const roles = await fetchUniqueRoles();
     const types = await fetchUniqueTypes();
 
@@ -1332,77 +1026,77 @@ async function openSalaryDialog() {
     const container = document.getElementById('modalContainer');
 
     container.innerHTML = `
-    <div class="salary-dialog">
-      <h2>Generate Salary Report</h2>
-      <p class="dialog-desc">Sort and Filter out the following fields according to criteria to generate a full Staff(s) Salary Report.</p>
+    <div style="max-width:550px;width:100%;">
+      <h2 style="font-size:22px;color:#0f172a;margin-bottom:8px;">Generate Salary Report</h2>
+      <p style="color:#64748b;font-size:14px;margin-bottom:20px;">Sort and Filter out the following fields according to criteria to generate a full Staff(s) Salary Report.</p>
       
-      <div class="form-group">
-        <label>Filter By Role:</label>
-        <select id="filterRole" class="styled-select">
+      <div style="margin-bottom:16px;">
+        <label style="font-weight:600;font-size:14px;color:#334155;display:block;margin-bottom:6px;">Filter By Role:</label>
+        <select id="filterRole" style="width:100%;padding:10px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;">
           <option value="">Select by Role</option>
           <option value="all">All Roles</option>
           ${roles.map(r => `<option value="${r}">${r}</option>`).join('')}
         </select>
       </div>
       
-      <div class="form-group">
-        <label>Filter by Type:</label>
-        <select id="filterType" class="styled-select">
+      <div style="margin-bottom:16px;">
+        <label style="font-weight:600;font-size:14px;color:#334155;display:block;margin-bottom:6px;">Filter by Type:</label>
+        <select id="filterType" style="width:100%;padding:10px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;">
           <option value="">Select by Type</option>
           <option value="all">FT & PT</option>
           ${types.map(t => `<option value="${t}">${t}</option>`).join('')}
         </select>
       </div>
       
-      <div class="form-group">
-        <label class="radio-label">
-          <input type="radio" name="staffSelect" id="individualStaff" onchange="toggleIndividualStaff()">
+      <div style="margin-bottom:16px;">
+        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:600;font-size:14px;">
+          <input type="radio" name="staffSelect" id="individualStaff" onchange="toggleIndividualStaff()" style="margin-top:2px;">
           Generate Salary Report Individually for:
         </label>
-        <select id="selectStaff" class="styled-select" disabled>
+        <select id="selectStaff" disabled style="width:100%;padding:10px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;margin-top:6px;background:#f1f5f9;">
           <option value="">Select Staff</option>
         </select>
       </div>
       
-      <div class="form-row">
-        <div class="form-group half">
-          <label>Date From:</label>
-          <input type="date" id="dateFrom" class="styled-input date-input">
+      <div style="display:flex;gap:16px;margin-bottom:16px;">
+        <div style="flex:1;">
+          <label style="font-weight:600;font-size:14px;color:#334155;display:block;margin-bottom:6px;">Date From:</label>
+          <input type="date" id="dateFrom" style="width:100%;padding:10px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;">
         </div>
-        <div class="form-group half">
-          <label>Date To:</label>
-          <input type="date" id="dateTo" class="styled-input date-input">
+        <div style="flex:1;">
+          <label style="font-weight:600;font-size:14px;color:#334155;display:block;margin-bottom:6px;">Date To:</label>
+          <input type="date" id="dateTo" style="width:100%;padding:10px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;">
         </div>
       </div>
       
-      <div class="form-group">
-        <label class="checkbox-label">
-          <input type="checkbox" id="sendToStaff">
+      <div style="margin-bottom:16px;">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
+          <input type="checkbox" id="sendToStaff" style="margin-top:3px;">
           <div>
-            <strong>Send Report to Staff via Email</strong>
-            <p>Checking this checkbox will send the respective salary report detail(s) to the respective staff(s) via email.</p>
+            <strong style="font-size:14px;color:#334155;display:block;">Send Report to Staff via Email</strong>
+            <p style="font-size:12px;color:#64748b;margin-top:3px;font-weight:400;">Checking this checkbox will send the respective salary report detail(s) to the respective staff(s) via email.</p>
           </div>
         </label>
       </div>
       
-      <div class="form-group">
-        <label class="checkbox-label">
-          <input type="checkbox" id="sendCopy">
+      <div style="margin-bottom:16px;">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
+          <input type="checkbox" id="sendCopy" style="margin-top:3px;">
           <div>
-            <strong>Send myself a Copy</strong>
-            <p>Send the entire generated salary report to myself through email.</p>
+            <strong style="font-size:14px;color:#334155;display:block;">Send myself a Copy</strong>
+            <p style="font-size:12px;color:#64748b;margin-top:3px;font-weight:400;">Send the entire generated salary report to myself through email.</p>
           </div>
         </label>
       </div>
       
-      <div class="dialog-note">
+      <div style="background:#f0f7ff;border-left:4px solid #1a73e8;padding:12px 14px;border-radius:8px;font-size:13px;color:#475569;margin:20px 0;display:flex;align-items:center;gap:8px;">
         <i class="fas fa-info-circle"></i>
         Clicking on the 'Generate Report' button will generate a salary report within the given date range and staff filtering.
       </div>
       
-      <div class="dialog-buttons">
-        <button class="btn-cancel" onclick="closeDialog()">Cancel</button>
-        <button class="btn-generate" onclick="generateSalaryReport()">
+      <div style="display:flex;justify-content:flex-end;gap:12px;">
+        <button onclick="closeDialog()" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;padding:10px 20px;border-radius:10px;font-size:14px;cursor:pointer;">Cancel</button>
+        <button onclick="generateSalaryReport()" style="background:#1a73e8;color:white;border:none;padding:10px 24px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;">
           <i class="fas fa-cog"></i> Generate Report
         </button>
       </div>
@@ -1413,7 +1107,7 @@ async function openSalaryDialog() {
 }
 
 // Toggle individual staff selection
-async function toggleIndividualStaff() {
+function toggleIndividualStaff() {
     const isIndividual = document.getElementById('individualStaff').checked;
     const staffSelect = document.getElementById('selectStaff');
     const filterRole = document.getElementById('filterRole');
@@ -1421,18 +1115,19 @@ async function toggleIndividualStaff() {
 
     if (isIndividual) {
         staffSelect.disabled = false;
+        staffSelect.style.background = 'white';
         filterRole.disabled = true;
         filterType.disabled = true;
-
-        // Fetch all staff names
-        const staff = await fetchAllStaffNames();
-        staffSelect.innerHTML = '<option value="">Select Staff</option>' +
-            staff.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+        fetchAllStaffNames().then(staff => {
+            staffSelect.innerHTML = '<option value="">Select Staff</option>' +
+                staff.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+        });
     } else {
         staffSelect.disabled = true;
+        staffSelect.style.background = '#f1f5f9';
+        staffSelect.innerHTML = '<option value="">Select Staff</option>';
         filterRole.disabled = false;
         filterType.disabled = false;
-        staffSelect.innerHTML = '<option value="">Select Staff</option>';
     }
 }
 
@@ -1447,28 +1142,18 @@ async function generateSalaryReport() {
     const sendToStaff = document.getElementById('sendToStaff').checked;
     const sendCopy = document.getElementById('sendCopy').checked;
 
-    // Validation
-    if (!isIndividual && !filterRole) {
-        alert('Please select a role filter.');
-        return;
-    }
-    if (!isIndividual && !filterType) {
-        alert('Please select a type filter.');
-        return;
-    }
-    if (isIndividual && !selectStaff) {
-        alert('Please select a staff member.');
-        return;
-    }
-    if (!dateFrom || !dateTo) {
-        alert('Please select date range.');
-        return;
+    if (!isIndividual && !filterRole) { alert('Please select a role filter.'); return; }
+    if (!isIndividual && !filterType) { alert('Please select a type filter.'); return; }
+    if (isIndividual && !selectStaff) { alert('Please select a staff member.'); return; }
+    if (!dateFrom || !dateTo) { alert('Please select date range.'); return; }
+
+    // Show loading in button
+    const generateBtn = document.querySelector('.btn-generate');
+    if (generateBtn) {
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = '<span class="spinner"></span> Generating...';
     }
 
-    // Show progress dialog
-    showProgressDialog();
-
-    // Prepare data
     const params = new URLSearchParams();
     params.append('action', 'generateSalaryReport');
     params.append('filterRole', filterRole);
@@ -1482,37 +1167,22 @@ async function generateSalaryReport() {
     params.append('adminEmail', currentUser.email);
 
     try {
-        updateProgress(10, 'Initializing report generation...');
-
-        const response = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            body: params
-        });
-
-        updateProgress(30, 'Processing staff data...');
-
+        const response = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: params });
         const result = await response.json();
 
         if (result.success) {
-            updateProgress(70, 'Generating PDF report...');
-
-            // Poll for completion
-            await pollReportStatus(result.jobId);
-
-            updateProgress(100, 'Report generated successfully!');
-
-            setTimeout(() => {
-                closeProgressDialog();
-                closeDialog();
-                alert('Salary report generated successfully!');
-            }, 1500);
+            closeDialog();
+            alert('Salary report generated successfully! Check your Google Drive folder.');
         } else {
-            closeProgressDialog();
-            alert('Error: ' + result.error);
+            alert('Error: ' + (result.error || 'Unknown error'));
         }
     } catch (error) {
-        closeProgressDialog();
         alert('Failed to generate report: ' + error.message);
+    } finally {
+        if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = '<i class="fas fa-cog"></i> Generate Report';
+        }
     }
 }
 
@@ -1577,35 +1247,26 @@ function closeDialog() {
     document.getElementById('modalOverlay').classList.remove('active');
 }
 
-// Fetch unique roles
 async function fetchUniqueRoles() {
     try {
         const response = await fetch(`${APPS_SCRIPT_URL}?action=getUniqueRoles`);
         const result = await response.json();
         return result.success ? result.roles : [];
-    } catch (e) {
-        return [];
-    }
+    } catch (e) { return []; }
 }
 
-// Fetch unique types
 async function fetchUniqueTypes() {
     try {
         const response = await fetch(`${APPS_SCRIPT_URL}?action=getUniqueTypes`);
         const result = await response.json();
         return result.success ? result.types : [];
-    } catch (e) {
-        return [];
-    }
+    } catch (e) { return []; }
 }
 
-// Fetch all staff names
 async function fetchAllStaffNames() {
     try {
         const response = await fetch(`${APPS_SCRIPT_URL}?action=getAllStaffNames`);
         const result = await response.json();
         return result.success ? result.staff : [];
-    } catch (e) {
-        return [];
-    }
+    } catch (e) { return []; }
 }
