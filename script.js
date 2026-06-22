@@ -1,7 +1,7 @@
 // Configuration
 const GOOGLE_CLIENT_ID = '137477957854-prdi3poibskfgdi8kdcg2l2sae54e25b.apps.googleusercontent.com';
 const REDIRECT_URI = window.location.origin + window.location.pathname;
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyOJy1cpAbohtulpOJytz2YbtwTuqW01f5jccdBTCITWX-REEmeTJqwaNosKTzphJaR/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzyWgkqLKRZWubPV2gQ5J2KSfALl2Zm-kjWO638FkNInAjGOqkTMGhTVZEyPOMK53fi/exec';
 const ADMIN_EMAIL = 'acc.legacyinstitute@gmail.com';
 
 // State
@@ -1031,8 +1031,8 @@ async function openSalaryDialog() {
       <p style="color:#64748b;font-size:14px;margin-bottom:20px;">Sort and Filter out the following fields according to criteria to generate a full Staff(s) Salary Report.</p>
       
       <div style="margin-bottom:16px;">
-        <label style="font-weight:600;font-size:14px;color:#334155;display:block;margin-bottom:6px;">Filter By Role:</label>
-        <select id="filterRole" style="width:100%;padding:10px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;">
+        <label style="font-weight:600;font-size:14px;display:block;margin-bottom:6px;">Filter By Role:</label>
+        <select id="filterRole" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;">
           <option value="">Select by Role</option>
           <option value="all">All Roles</option>
           ${roles.map(r => `<option value="${r}">${r}</option>`).join('')}
@@ -1040,8 +1040,8 @@ async function openSalaryDialog() {
       </div>
       
       <div style="margin-bottom:16px;">
-        <label style="font-weight:600;font-size:14px;color:#334155;display:block;margin-bottom:6px;">Filter by Type:</label>
-        <select id="filterType" style="width:100%;padding:10px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;">
+        <label style="font-weight:600;font-size:14px;display:block;margin-bottom:6px;">Filter by Type:</label>
+        <select id="filterType" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;">
           <option value="">Select by Type</option>
           <option value="all">FT & PT</option>
           ${types.map(t => `<option value="${t}">${t}</option>`).join('')}
@@ -1049,56 +1049,47 @@ async function openSalaryDialog() {
       </div>
       
       <div style="margin-bottom:16px;">
-        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:600;font-size:14px;">
-          <input type="radio" name="staffSelect" id="individualStaff" onchange="toggleIndividualStaff()" style="margin-top:2px;">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;cursor:pointer;">
+          <input type="radio" name="staffSelect" id="individualStaff" onchange="toggleIndividualStaff()">
           Generate Salary Report Individually for:
         </label>
-        <select id="selectStaff" disabled style="width:100%;padding:10px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;margin-top:6px;background:#f1f5f9;">
+        <select id="selectStaff" disabled style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;margin-top:6px;background:#f1f5f9;">
           <option value="">Select Staff</option>
         </select>
       </div>
       
       <div style="display:flex;gap:16px;margin-bottom:16px;">
         <div style="flex:1;">
-          <label style="font-weight:600;font-size:14px;color:#334155;display:block;margin-bottom:6px;">Date From:</label>
-          <input type="date" id="dateFrom" style="width:100%;padding:10px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;">
+          <label style="font-weight:600;font-size:14px;display:block;margin-bottom:6px;">Date From:</label>
+          <input type="date" id="dateFrom" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;">
         </div>
         <div style="flex:1;">
-          <label style="font-weight:600;font-size:14px;color:#334155;display:block;margin-bottom:6px;">Date To:</label>
-          <input type="date" id="dateTo" style="width:100%;padding:10px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;">
+          <label style="font-weight:600;font-size:14px;display:block;margin-bottom:6px;">Date To:</label>
+          <input type="date" id="dateTo" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;">
         </div>
       </div>
       
       <div style="margin-bottom:16px;">
         <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
-          <input type="checkbox" id="sendToStaff" style="margin-top:3px;">
-          <div>
-            <strong style="font-size:14px;color:#334155;display:block;">Send Report to Staff via Email</strong>
-            <p style="font-size:12px;color:#64748b;margin-top:3px;font-weight:400;">Checking this checkbox will send the respective salary report detail(s) to the respective staff(s) via email.</p>
-          </div>
+          <input type="checkbox" id="sendToStaff">
+          <div><strong>Send Report to Staff via Email</strong><p style="font-size:12px;color:#64748b;margin-top:3px;">Send respective salary details to each staff via email.</p></div>
         </label>
       </div>
       
       <div style="margin-bottom:16px;">
         <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
-          <input type="checkbox" id="sendCopy" style="margin-top:3px;">
-          <div>
-            <strong style="font-size:14px;color:#334155;display:block;">Send myself a Copy</strong>
-            <p style="font-size:12px;color:#64748b;margin-top:3px;font-weight:400;">Send the entire generated salary report to myself through email.</p>
-          </div>
+          <input type="checkbox" id="sendCopy">
+          <div><strong>Send myself a Copy</strong><p style="font-size:12px;color:#64748b;margin-top:3px;">Send the entire generated salary report to myself through email.</p></div>
         </label>
       </div>
       
-      <div style="background:#f0f7ff;border-left:4px solid #1a73e8;padding:12px 14px;border-radius:8px;font-size:13px;color:#475569;margin:20px 0;display:flex;align-items:center;gap:8px;">
-        <i class="fas fa-info-circle"></i>
-        Clicking on the 'Generate Report' button will generate a salary report within the given date range and staff filtering.
+      <div style="background:#f0f7ff;border-left:4px solid #1a73e8;padding:12px;border-radius:8px;font-size:13px;color:#475569;margin:20px 0;">
+        <i class="fas fa-info-circle"></i> Clicking 'Generate Report' will generate a salary report within the given date range and staff filtering.
       </div>
       
       <div style="display:flex;justify-content:flex-end;gap:12px;">
-        <button onclick="closeDialog()" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;padding:10px 20px;border-radius:10px;font-size:14px;cursor:pointer;">Cancel</button>
-        <button onclick="generateSalaryReport()" style="background:#1a73e8;color:white;border:none;padding:10px 24px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;">
-          <i class="fas fa-cog"></i> Generate Report
-        </button>
+        <button onclick="closeDialog()" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;padding:10px 20px;border-radius:10px;cursor:pointer;">Cancel</button>
+        <button onclick="generateSalaryReport()" style="background:#1a73e8;color:white;border:none;padding:10px 24px;border-radius:10px;font-weight:600;cursor:pointer;">Generate Report</button>
       </div>
     </div>
   `;
@@ -1146,14 +1137,10 @@ async function generateSalaryReport() {
   if (!isIndividual && !filterType) { alert('Please select a type filter.'); return; }
   if (isIndividual && !selectStaff) { alert('Please select a staff member.'); return; }
   if (!dateFrom || !dateTo) { alert('Please select date range.'); return; }
+  if (new Date(dateFrom) > new Date(dateTo)) { alert('Date From must be before Date To.'); return; }
 
-  if (new Date(dateFrom) > new Date(dateTo)) {
-    alert('Date From must be before Date To.');
-    return;
-  }
-
+  closeDialog();
   showProgressDialog();
-  updateProgress(5, 'Starting report generation...');
 
   const formData = new URLSearchParams();
   formData.append('action', 'generateSalaryReport');
@@ -1168,55 +1155,38 @@ async function generateSalaryReport() {
   formData.append('adminEmail', currentUser.email);
 
   try {
-    updateProgress(10, 'Connecting to server...');
+    updateProgress(3, 'Connecting to server...');
 
-    const response = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      body: formData
-    });
-
+    const response = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: formData });
     const result = await response.json();
 
     if (result.success && result.jobId) {
-      updateProgress(15, 'Processing started...');
-
-      // Poll for status updates
+      // Poll for progress
       let attempts = 0;
-      const maxAttempts = 60; // 2 minutes max
+      while (attempts < 90) {
+        await new Promise(r => setTimeout(r, 1500));
 
-      while (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        const statusRes = await fetch(`${APPS_SCRIPT_URL}?action=checkReportStatus&jobId=${result.jobId}`);
+        const status = await statusRes.json();
 
-        const statusResponse = await fetch(`${APPS_SCRIPT_URL}?action=checkReportStatus&jobId=${result.jobId}`);
-        const statusResult = await statusResponse.json();
+        if (status.progress) updateProgress(status.progress, status.status);
 
-        if (statusResult.progress) {
-          updateProgress(statusResult.progress, statusResult.status);
-        }
-
-        if (statusResult.complete) {
-          if (statusResult.error) {
+        if (status.complete) {
+          updateProgress(100, '✅ Report generated successfully!');
+          setTimeout(() => {
             closeProgressDialog();
-            alert('Error: ' + statusResult.error);
-          } else {
-            updateProgress(100, 'Report generated successfully!');
-            setTimeout(() => {
-              closeProgressDialog();
-              closeDialog();
-              alert('✅ Salary report generated successfully!\n\nCheck your Google Drive folder for the PDF.');
-            }, 1000);
-          }
+            alert('Salary report generated successfully!\n\nCheck Google Drive folder for the PDF.');
+          }, 1000);
           return;
         }
-
         attempts++;
       }
 
       closeProgressDialog();
-      alert('Report generation is taking longer than expected. Please check Google Drive or Salary Reports sheet.');
+      alert('Report generation is taking longer. Check Google Drive shortly.');
     } else {
       closeProgressDialog();
-      alert('Error: ' + (result.error || 'Failed to start report generation'));
+      alert('Error: ' + (result.error || 'Failed to generate report'));
     }
   } catch (error) {
     closeProgressDialog();
@@ -1230,13 +1200,14 @@ function showProgressDialog() {
   const container = document.getElementById('modalContainer');
 
   container.innerHTML = `
-    <div style="text-align:center;padding:30px;">
-      <h3 style="font-size:20px;color:#0f172a;margin-bottom:10px;">Generating Salary Report</h3>
+    <div style="text-align:center;padding:30px;min-width:350px;">
+      <i class="fas fa-cog fa-spin" style="font-size:40px;color:#1a73e8;margin-bottom:15px;"></i>
+      <h3 style="font-size:18px;color:#0f172a;margin-bottom:8px;">Generating Salary Report</h3>
       <p id="progressText" style="color:#64748b;font-size:14px;margin-bottom:20px;">Initializing...</p>
-      <div style="width:100%;height:8px;background:#e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:10px;">
+      <div style="width:100%;height:10px;background:#e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:10px;">
         <div id="progressFill" style="height:100%;background:linear-gradient(90deg,#1a73e8,#4a90d9);border-radius:10px;transition:width 0.5s;width:0%;"></div>
       </div>
-      <p id="progressPercent" style="font-size:24px;font-weight:700;color:#1a73e8;">0%</p>
+      <p id="progressPercent" style="font-size:28px;font-weight:700;color:#1a73e8;">0%</p>
     </div>
   `;
 
@@ -1248,7 +1219,6 @@ function updateProgress(percent, text) {
   const fill = document.getElementById('progressFill');
   const percentEl = document.getElementById('progressPercent');
   const textEl = document.getElementById('progressText');
-
   if (fill) fill.style.width = percent + '%';
   if (percentEl) percentEl.textContent = percent + '%';
   if (textEl) textEl.textContent = text;
@@ -1286,24 +1256,24 @@ function closeDialog() {
 
 async function fetchUniqueRoles() {
   try {
-    const response = await fetch(`${APPS_SCRIPT_URL}?action=getUniqueRoles`);
-    const result = await response.json();
-    return result.success ? result.roles : [];
+    const res = await fetch(`${APPS_SCRIPT_URL}?action=getUniqueRoles`);
+    const data = await res.json();
+    return data.success ? data.roles : [];
   } catch (e) { return []; }
 }
 
 async function fetchUniqueTypes() {
   try {
-    const response = await fetch(`${APPS_SCRIPT_URL}?action=getUniqueTypes`);
-    const result = await response.json();
-    return result.success ? result.types : [];
+    const res = await fetch(`${APPS_SCRIPT_URL}?action=getUniqueTypes`);
+    const data = await res.json();
+    return data.success ? data.types : [];
   } catch (e) { return []; }
 }
 
 async function fetchAllStaffNames() {
   try {
-    const response = await fetch(`${APPS_SCRIPT_URL}?action=getAllStaffNames`);
-    const result = await response.json();
-    return result.success ? result.staff : [];
+    const res = await fetch(`${APPS_SCRIPT_URL}?action=getAllStaffNames`);
+    const data = await res.json();
+    return data.success ? data.staff : [];
   } catch (e) { return []; }
 }
