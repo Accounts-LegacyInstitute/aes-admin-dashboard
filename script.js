@@ -1,7 +1,7 @@
 // Configuration
 const GOOGLE_CLIENT_ID = '137477957854-prdi3poibskfgdi8kdcg2l2sae54e25b.apps.googleusercontent.com';
 const REDIRECT_URI = window.location.origin + window.location.pathname;
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4R8BUriOOJRQlgevRdoKnnllCydTUv-pPoCVlmagR5c1aL6HZgQb5e9EHU2YraIVB/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbypArG3VHfNcnmhLa3hVdQQa4TzbVdnCv62_e5k_DxNk3RgEC4paA4hJ8tokcnM3SEX/exec';
 const ADMIN_EMAIL = 'acc.legacyinstitute@gmail.com';
 
 // State
