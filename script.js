@@ -15,8 +15,18 @@ let codeSent = false;
 // Initialize
 function initApp() {
   checkAuthStatus();
+
   if (isAuthenticated && currentUser) {
-    handlePostLogin();
+    if (currentUser.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+      showUnauthorizedScreen();
+      return;
+    }
+
+    if (isEmailVerified) {
+      showPasskeyVerification();
+    } else {
+      showEmailVerification();
+    }
   } else {
     renderLoginScreen();
   }
@@ -33,6 +43,11 @@ function checkAuthStatus() {
     if (now < parseInt(tokenExpiry)) {
       currentUser = JSON.parse(userData);
       isAuthenticated = true;
+
+      const emailVerified = sessionStorage.getItem('admin_email_verified');
+      if (emailVerified === 'true') {
+        isEmailVerified = true;
+      }
     } else {
       clearAuth();
     }
@@ -44,6 +59,8 @@ function clearAuth() {
   localStorage.removeItem('admin_token');
   localStorage.removeItem('admin_user');
   localStorage.removeItem('admin_token_expiry');
+  sessionStorage.removeItem('admin_fresh_login');
+  sessionStorage.removeItem('admin_email_verified');
   currentUser = null;
   isAuthenticated = false;
   isEmailVerified = false;
@@ -107,7 +124,7 @@ function handleOAuthCallback(event) {
   }
 }
 
-// Handle auth response
+// Hande auth response
 async function handleAuthResponse(hash) {
   const params = new URLSearchParams(hash.substring(1));
   const accessToken = params.get('access_token');
@@ -147,17 +164,23 @@ async function handlePostLogin() {
     return;
   }
 
-  // Check if this is a FRESH Google login (just authenticated)
+  // Check if email was already verified in this session
+  const emailVerified = sessionStorage.getItem('admin_email_verified');
+
+  // Check if this is a FRESH Google login
   const isFreshLogin = sessionStorage.getItem('admin_fresh_login') === 'true';
 
-  if (isFreshLogin) {
-    // Clear the flag
+  if (isFreshLogin && !emailVerified) {
+    // Clear the fresh login flag
     sessionStorage.removeItem('admin_fresh_login');
     // New login = require email verification
     showEmailVerification();
-  } else {
-    // Returning user with valid token = skip to passkey
+  } else if (emailVerified === 'true') {
+    // Already verified in this session = skip to passkey
     showPasskeyVerification();
+  } else {
+    // Fallback: verify email
+    showEmailVerification();
   }
 }
 
@@ -339,6 +362,7 @@ async function verifyCode() {
 
     if (result.success) {
       isEmailVerified = true;
+      sessionStorage.setItem('admin_email_verified', 'true');
       document.getElementById('modalOverlay').classList.remove('active');
       showPasskeyVerification();
     } else {
