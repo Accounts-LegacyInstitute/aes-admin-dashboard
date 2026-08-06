@@ -1,7 +1,7 @@
 // Configuration
 const GOOGLE_CLIENT_ID = '137477957854-prdi3poibskfgdi8kdcg2l2sae54e25b.apps.googleusercontent.com';
 const REDIRECT_URI = window.location.origin + window.location.pathname;
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbypArG3VHfNcnmhLa3hVdQQa4TzbVdnCv62_e5k_DxNk3RgEC4paA4hJ8tokcnM3SEX/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfSLONgaPGb0EAtOq0NyIyAdt39tEcHf4WmA7yNuk/dev';
 const ADMIN_EMAIL = 'acc.legacyinstitute@gmail.com';
 
 // State
@@ -215,9 +215,19 @@ async function sendVerificationCode() {
   sendBtn.innerHTML = '<span class="spinner"></span> Sending...';
 
   try {
-    const url = `${APPS_SCRIPT_URL}?action=sendVerificationCode&email=${encodeURIComponent(currentUser.email)}`;
+    const url = APPS_SCRIPT_URL + '?action=sendVerificationCode&email=' + encodeURIComponent(currentUser.email);
+    console.log('Send code URL:', url);
+
     const response = await fetch(url);
-    const result = await response.json();
+    const text = await response.text();
+    console.log('Send code response:', text);
+
+    let result;
+    try {
+      result = JSON.parse(text);
+    } catch (e) {
+      throw new Error('Invalid server response');
+    }
 
     if (result.success) {
       codeSent = true;
@@ -228,7 +238,8 @@ async function sendVerificationCode() {
       sendBtn.innerHTML = '<i class="bx bx-send"></i> Send Verification Code';
     }
   } catch (error) {
-    alert('Connection error. Please try again.');
+    console.error('Send code error:', error);
+    alert('Connection error: ' + error.message);
     sendBtn.disabled = false;
     sendBtn.innerHTML = '<i class="bx bx-send"></i> Send Verification Code';
   }
@@ -1181,8 +1192,27 @@ async function generateSalaryReport() {
   try {
     updateProgress(3, 'Connecting to server...');
 
-    const response = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: formData });
-    const result = await response.json();
+    console.log('Sending request to:', APPS_SCRIPT_URL);
+
+    const response = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: formData
+    });
+
+    console.log('Response status:', response.status);
+
+    // Get the response as text first
+    const responseText = await response.text();
+    console.log('Response text:', responseText.substring(0, 200));
+
+    // Try to parse as JSON
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('JSON parse error. Full response:', responseText);
+      throw new Error('Server returned invalid response. Check Apps Script logs.');
+    }
 
     if (result.success && result.jobId) {
       // Poll for progress
@@ -1190,8 +1220,17 @@ async function generateSalaryReport() {
       while (attempts < 90) {
         await new Promise(r => setTimeout(r, 1500));
 
-        const statusRes = await fetch(`${APPS_SCRIPT_URL}?action=checkReportStatus&jobId=${result.jobId}`);
-        const status = await statusRes.json();
+        const statusUrl = APPS_SCRIPT_URL + '?action=checkReportStatus&jobId=' + result.jobId;
+        const statusRes = await fetch(statusUrl);
+        const statusText = await statusRes.text();
+
+        let status;
+        try {
+          status = JSON.parse(statusText);
+        } catch (e) {
+          console.error('Status parse error:', statusText);
+          continue;
+        }
 
         if (status.progress) updateProgress(status.progress, status.status);
 
@@ -1213,6 +1252,7 @@ async function generateSalaryReport() {
       alert('Error: ' + (result.error || 'Failed to generate report'));
     }
   } catch (error) {
+    console.error('Generate salary error:', error);
     closeProgressDialog();
     alert('Connection error: ' + error.message);
   }
@@ -1280,24 +1320,46 @@ function closeDialog() {
 
 async function fetchUniqueRoles() {
   try {
-    const res = await fetch(`${APPS_SCRIPT_URL}?action=getUniqueRoles`);
-    const data = await res.json();
+    const url = APPS_SCRIPT_URL + '?action=getUniqueRoles';
+    console.log('Fetching roles from:', url);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    console.log('Roles response:', text);
+    const data = JSON.parse(text);
     return data.success ? data.roles : [];
-  } catch (e) { return []; }
+  } catch (e) {
+    console.error('fetchUniqueRoles error:', e);
+    return [];
+  }
 }
 
 async function fetchUniqueTypes() {
   try {
-    const res = await fetch(`${APPS_SCRIPT_URL}?action=getUniqueTypes`);
-    const data = await res.json();
+    const url = APPS_SCRIPT_URL + '?action=getUniqueTypes';
+    console.log('Fetching types from:', url);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    console.log('Types response:', text);
+    const data = JSON.parse(text);
     return data.success ? data.types : [];
-  } catch (e) { return []; }
+  } catch (e) {
+    console.error('fetchUniqueTypes error:', e);
+    return [];
+  }
 }
 
 async function fetchAllStaffNames() {
   try {
-    const res = await fetch(`${APPS_SCRIPT_URL}?action=getAllStaffNames`);
-    const data = await res.json();
+    const url = APPS_SCRIPT_URL + '?action=getAllStaffNames';
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    const data = JSON.parse(text);
     return data.success ? data.staff : [];
-  } catch (e) { return []; }
+  } catch (e) {
+    console.error('fetchAllStaffNames error:', e);
+    return [];
+  }
 }
