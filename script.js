@@ -3,6 +3,7 @@ const GOOGLE_CLIENT_ID = '137477957854-prdi3poibskfgdi8kdcg2l2sae54e25b.apps.goo
 const REDIRECT_URI = window.location.origin + window.location.pathname;
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxJzkn8wjzl-YUHRxi6blizIi7IJdHQfSSc55VuHaSPq-QnWTB7877myGvjUEOyYUE1/exec';
 const ADMIN_EMAIL = 'acc.legacyinstitute@gmail.com';
+const developer = null;
 
 // State
 let currentUser = null;
