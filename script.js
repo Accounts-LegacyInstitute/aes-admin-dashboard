@@ -1177,6 +1177,7 @@ async function generateSalaryReport() {
 
   closeDialog();
   showProgressDialog();
+  updateProgress(10, 'Generating report...');
 
   const formData = new URLSearchParams();
   formData.append('action', 'generateSalaryReport');
@@ -1191,71 +1192,24 @@ async function generateSalaryReport() {
   formData.append('adminEmail', currentUser.email);
 
   try {
-    updateProgress(3, 'Connecting to server...');
+    updateProgress(20, 'Processing...');
 
-    console.log('Sending request to:', APPS_SCRIPT_URL);
+    const response = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: formData });
+    const result = await response.json();
 
-    const response = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      body: formData
-    });
-
-    console.log('Response status:', response.status);
-
-    // Get the response as text first
-    const responseText = await response.text();
-    console.log('Response text:', responseText.substring(0, 200));
-
-    // Try to parse as JSON
-    let result;
-    try {
-      result = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error('JSON parse error. Full response:', responseText);
-      throw new Error('Server returned invalid response. Check Apps Script logs.');
-    }
-
-    if (result.success && result.jobId) {
-      // Poll for progress
-      let attempts = 0;
-      while (attempts < 90) {
-        await new Promise(r => setTimeout(r, 1500));
-
-        const statusUrl = APPS_SCRIPT_URL + '?action=checkReportStatus&jobId=' + result.jobId;
-        const statusRes = await fetch(statusUrl);
-        const statusText = await statusRes.text();
-
-        let status;
-        try {
-          status = JSON.parse(statusText);
-        } catch (e) {
-          console.error('Status parse error:', statusText);
-          continue;
-        }
-
-        if (status.progress) updateProgress(status.progress, status.status);
-
-        if (status.complete) {
-          updateProgress(100, '✅ Report generated successfully!');
-          setTimeout(() => {
-            closeProgressDialog();
-            alert('Salary report generated successfully!\n\nCheck Google Drive folder for the PDF.');
-          }, 1000);
-          return;
-        }
-        attempts++;
-      }
-
-      closeProgressDialog();
-      alert('Report generation is taking longer. Check Google Drive shortly.');
+    if (result.success) {
+      updateProgress(100, '✅ Report generated successfully!');
+      setTimeout(() => {
+        closeProgressDialog();
+        alert('Salary report generated successfully!\n\nFile: ' + (result.fileName || 'Check Google Drive'));
+      }, 500);
     } else {
       closeProgressDialog();
-      alert('Error: ' + (result.error || 'Failed to generate report'));
+      alert('Error: ' + (result.error || 'Failed'));
     }
   } catch (error) {
-    console.error('Generate salary error:', error);
     closeProgressDialog();
-    alert('Connection error: ' + error.message);
+    alert('Error: ' + error.message);
   }
 }
 
