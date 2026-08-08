@@ -151,7 +151,7 @@ async function handleAuthResponse(hash) {
 
       handlePostLogin();
     } catch (error) {
-      alert('Authentication failed. Please try again.');
+      showNotification('Authentication failed or timeout. Please try again later.', 'error', 'Authentication Failed');
       renderLoginScreen();
     }
   }
@@ -234,13 +234,13 @@ async function sendVerificationCode() {
       codeSent = true;
       showCodeInputSection();
     } else {
-      alert(result.error || 'Failed to send code');
+      showNotification('Failed to send verification code. Please try again later', 'error', 'Verification failed');
       sendBtn.disabled = false;
       sendBtn.innerHTML = '<i class="bx bx-send"></i> Send Verification Code';
     }
   } catch (error) {
     console.error('Send code error:', error);
-    alert('Connection error: ' + error.message);
+    showNotification(error.message || 'Connection failed :', 'error', 'Connection Error');
     sendBtn.disabled = false;
     sendBtn.innerHTML = '<i class="bx bx-send"></i> Send Verification Code';
   }
@@ -347,7 +347,7 @@ async function resendCode() {
       setTimeout(() => { errorEl.style.display = 'none'; }, 3000);
     }
   } catch (error) {
-    alert('Failed to resend code.');
+    showNotification('Failed to resend verification code. Please try again later.', 'error', 'Code Resend Error');
   } finally {
     resendBtn.disabled = false;
     resendBtn.innerHTML = '<i class="bx bx-refresh"></i> Resend Code';
@@ -563,7 +563,7 @@ async function registerPasskey() {
     }
   } catch (error) {
     console.error('Passkey registration failed:', error);
-    alert('Passkey registration failed. Please try again.');
+    showNotification('Passkey Registration failed. Please try again later.', 'error', 'Passkey Failed');
   }
 }
 
@@ -595,7 +595,7 @@ async function verifyPasskey() {
     }
   } catch (error) {
     console.error('Passkey verification failed:', error);
-    alert('Passkey verification failed. Please try again.');
+    showNotification('Passkey Verification failed. Please try again later or check whether your device supports passkey verification.', 'error', 'Passkey Verification Failed');
   }
 }
 
@@ -654,7 +654,7 @@ function renderDashboard() {
              alt="Salary Report" style="width:120px;margin-bottom:20px;">
         <h2 style="font-family:var(--default-font);font-size:28px;color:#0f172a;margin-bottom:10px;">Generate Salary Report</h2>
         <p style="color:#64748b;font-size:15px;line-height:1.6;margin-bottom:25px;">Generate reports and summarize staff salary details. Click 'Generate Report' below to generate a new Salary Report with different criteria applied.</p>
-        <button class="generate-report-btn" onclick="openSalaryDialog()" style="background:#1a73e8;color:white;border:none;padding:14px 30px;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
+        <button class="generate-report-btn" id="generateReportBtn" onclick="openSalaryDialog()" style="background:#1a73e8;color:white;border:none;padding:14px 30px;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
           <i class="fas fa-file-invoice"></i> Generate Report
         </button>
         <button class="logout-btn" onclick="logoutAdmin()" style="margin-top:20px;background:#ef4444;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px;">
@@ -1055,13 +1055,19 @@ if (window.opener) {
 
 // Open salary generation dialog
 async function openSalaryDialog() {
-  const roles = await fetchUniqueRoles();
-  const types = await fetchUniqueTypes();
+  const btn = document.getElementById('generateReportBtn');
+  const originalHTML = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Loading...';
 
-  const overlay = document.getElementById('modalOverlay');
-  const container = document.getElementById('modalContainer');
+  try {
+    const roles = await fetchUniqueRoles();
+    const types = await fetchUniqueTypes();
 
-  container.innerHTML = `
+    const overlay = document.getElementById('modalOverlay');
+    const container = document.getElementById('modalContainer');
+
+    container.innerHTML = `
     <div style="max-width:550px;width:100%;">
       <h2 style="font-size:22px;color:#0f172a;margin-bottom:8px;">Generate Salary Report</h2>
       <p style="color:#64748b;font-size:14px;margin-bottom:20px;">Sort and Filter out the following fields according to criteria to generate a full Staff(s) Salary Report.</p>
@@ -1128,9 +1134,15 @@ async function openSalaryDialog() {
         <button onclick="generateSalaryReport()" style="background:#1a73e8;color:white;border:none;padding:10px 24px;border-radius:10px;font-weight:600;cursor:pointer;">Generate Report</button>
       </div>
     </div>
-  `;
+   `;
 
-  overlay.classList.add('active');
+    overlay.classList.add('active');
+  } catch (e) {
+    showNotification('Failed to load filters', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHTML;
+  }
 }
 
 // Toggle individual staff selection
@@ -1169,11 +1181,11 @@ async function generateSalaryReport() {
   const sendToStaff = document.getElementById('sendToStaff').checked;
   const sendCopy = document.getElementById('sendCopy').checked;
 
-  if (!isIndividual && !filterRole) { alert('Please select a role filter.'); return; }
-  if (!isIndividual && !filterType) { alert('Please select a type filter.'); return; }
-  if (isIndividual && !selectStaff) { alert('Please select a staff member.'); return; }
-  if (!dateFrom || !dateTo) { alert('Please select date range.'); return; }
-  if (new Date(dateFrom) > new Date(dateTo)) { alert('Date From must be before Date To.'); return; }
+  if (!isIndividual && !filterRole) { showNotification('Please select a role filter before generating.', 'warning', 'Missing Selection'); return; }
+  if (!isIndividual && !filterType) { showNotification('Please select a type filter before generating.', 'warning', 'Missing Selection'); return; }
+  if (isIndividual && !selectStaff) { showNotification('Please select staff(s) before generating.', 'warning', 'Missing Selection'); return; }
+  if (!dateFrom || !dateTo) { showNotification('Please select a correct date range before generating.', 'warning', 'Missing Date Range'); return; }
+  if (new Date(dateFrom) > new Date(dateTo)) { showNotification('Date From must be before Date To', 'warning', 'Invalid Date Range'); return; }
 
   closeDialog();
   showProgressDialog();
@@ -1201,15 +1213,15 @@ async function generateSalaryReport() {
       updateProgress(100, '✅ Report generated successfully!');
       setTimeout(() => {
         closeProgressDialog();
-        alert('Salary report generated successfully!\n\nFile: ' + (result.fileName || 'Check Google Drive'));
+        showNotification('Salary report generated successfully! Check Google Drive.', 'success', 'Report Generated');
       }, 500);
     } else {
       closeProgressDialog();
-      alert('Error: ' + (result.error || 'Failed'));
+      showNotification(result.error || 'Operation Failed', 'error', 'Operation Timeout or Failed');
     }
   } catch (error) {
     closeProgressDialog();
-    alert('Error: ' + error.message);
+    showNotification(error.message || 'Error', 'error', 'Error');
   }
 }
 
@@ -1317,4 +1329,41 @@ async function fetchAllStaffNames() {
     console.error('fetchAllStaffNames error:', e);
     return [];
   }
+}
+
+function showNotification(message, type = 'info', title = '', duration = 5000) {
+  const existing = document.querySelectorAll('.custom-notification');
+  existing.forEach(n => n.remove());
+
+  const icons = {
+    success: 'bx-check-circle',
+    error: 'bx-x-circle',
+    info: 'bx-info-circle',
+    warning: 'bx-error-circle'
+  };
+
+  const titles = {
+    success: title || 'Success',
+    error: title || 'Error',
+    info: title || 'Information',
+    warning: title || 'Warning'
+  };
+
+  const notif = document.createElement('div');
+  notif.className = 'custom-notification ' + type;
+  notif.innerHTML = `
+    <i class='bx ${icons[type]}'></i>
+    <div class="notif-content">
+      <div class="notif-title">${titles[type]}</div>
+      <div class="notif-message">${message}</div>
+    </div>
+    <i class='bx bx-x notif-close' onclick="this.parentElement.remove()"></i>
+  `;
+
+  document.body.appendChild(notif);
+
+  setTimeout(() => {
+    notif.style.animation = 'slideOutRight 0.3s ease';
+    setTimeout(() => notif.remove(), 300);
+  }, duration);
 }
