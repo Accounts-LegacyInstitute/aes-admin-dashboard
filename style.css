@@ -1,13 +1,13 @@
 :root {
     --default-font: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
-    --primary: #1a73e8;
-    --primary-dark: #1557b0;
-    --success: #0f9d58;
-    --danger: #ea4335;
-    --warning: #f4b400;
-    --dark: #1f2937;
-    --light: #f9fafb;
-    --border: #e5e7eb;
+    --primary: #8cb300;
+    --primary-dark: #6a8800;
+    --success: #00d16c;
+    --danger: #e61603;
+    --warning: #ffbb00;
+    --dark: #2c3800;
+    --light: #dddddd;
+    --border: #dbdbdb;
 }
 
 * {
@@ -18,7 +18,7 @@
 }
 
 body {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #8cb300 0%, #6d8b00 100%);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -34,10 +34,10 @@ body {
     width: 100%;
     max-width: 1200px;
     height: 90vh;
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(204, 204, 204, 0.95);
     border-radius: 30px;
     padding: 30px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -621,12 +621,12 @@ body {
 
 .verification-icon {
     font-size: 180px;
-    color: #007aff;
+    color: #8cb300;
     animation: pulse 2s infinite;
 }
 
 .passkey-btn {
-    background: #007aff;
+    background: #8cb300;
     color: white;
     border: none;
     padding: 16px 32px;
@@ -642,7 +642,7 @@ body {
 }
 
 .passkey-btn:hover {
-    background: #0051d5;
+    background: #749500;
 }
 
 .skip-text {
@@ -718,8 +718,8 @@ body {
 }
 
 .generate-report-btn {
-    background: #1a73e8;
-    color: white;
+    background: #8cb300;
+    color: rgb(0, 0, 0);
     border: none;
     padding: 14px 30px;
     border-radius: 12px;
@@ -733,7 +733,7 @@ body {
 }
 
 .generate-report-btn:hover {
-    background: #1557b0;
+    background: #7da000;
     transform: translateY(-2px);
 }
 
@@ -774,7 +774,7 @@ body {
     border: 2px solid #e2e8f0;
     border-radius: 10px;
     font-size: 14px;
-    color: #1e293b;
+    color: #212326;
     background: white;
     transition: all 0.2s;
 }
@@ -782,7 +782,7 @@ body {
 .styled-select:focus,
 .styled-input:focus {
     outline: none;
-    border-color: #1a73e8;
+    border-color: #8cb300;
     box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
 }
 
@@ -827,7 +827,7 @@ body {
 .checkbox-label strong {
     display: block;
     font-size: 14px;
-    color: #334155;
+    color: #31342d;
 }
 
 .checkbox-label p {
@@ -839,7 +839,7 @@ body {
 
 .dialog-note {
     background: #f0f7ff;
-    border-left: 4px solid #1a73e8;
+    border-left: 4px solid #8cb300;
     padding: 12px 14px;
     border-radius: 8px;
     font-size: 13px;
@@ -868,7 +868,7 @@ body {
 }
 
 .btn-generate {
-    background: #1a73e8;
+    background: #8cb300;
     color: white;
     border: none;
     padding: 10px 24px;
@@ -882,7 +882,7 @@ body {
 }
 
 .btn-generate:hover {
-    background: #1557b0;
+    background: #7a9c00;
 }
 
 /* Progress Dialog */
@@ -914,7 +914,7 @@ body {
 
 .progress-bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, #1a73e8, #4a90d9);
+    background: linear-gradient(90deg, #8cb300, #516700);
     border-radius: 10px;
     transition: width 0.5s ease;
     width: 0%;
@@ -923,7 +923,7 @@ body {
 .progress-percent {
     font-size: 24px;
     font-weight: 700;
-    color: #1a73e8;
+    color: #8cb300;
 }
 
 /* Date input styling */
@@ -958,7 +958,7 @@ body {
 }
 
 .custom-notification.success {
-    border-left: 4px solid #0f9d58;
+    border-left: 4px solid #8cb300;
 }
 
 .custom-notification.error {
@@ -979,7 +979,7 @@ body {
 }
 
 .custom-notification.success i {
-    color: #0f9d58;
+    color: #8cb300;
 }
 
 .custom-notification.error i {

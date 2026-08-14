@@ -1204,24 +1204,60 @@ async function generateSalaryReport() {
   formData.append('adminEmail', currentUser.email);
 
   try {
-    updateProgress(20, 'Processing...');
+    updateProgress(5, 'Connecting to server...');
 
     const response = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: formData });
+
+    updateProgress(15, 'Starting Salary Report Generation...');
+    await new Promise(r => setTimeout(r, 300));
+
+    updateProgress(25, 'Filtering staff members...');
+    await new Promise(r => setTimeout(r, 400));
+
+    updateProgress(35, 'Calculating attendance records...');
+    await new Promise(r => setTimeout(r, 500));
+
+    updateProgress(45, 'Processing salary calculations...');
+    await new Promise(r => setTimeout(r, 500));
+
+    updateProgress(55, 'Computing deductions and net pay...');
+    await new Promise(r => setTimeout(r, 400));
+
+    updateProgress(65, 'Hang on for a while...');
+    await new Promise(r => setTimeout(r, 400));
+
+    updateProgress(75, 'Generating PDF Salary Report...');
+    await new Promise(r => setTimeout(r, 600));
+
+    updateProgress(85, 'Cleaning up process...');
+    await new Promise(r => setTimeout(r, 400));
+
+    updateProgress(92, 'Sending report email...');
+    await new Promise(r => setTimeout(r, 400));
+
     const result = await response.json();
 
     if (result.success) {
-      updateProgress(100, '✅ Report generated successfully!');
+      updateProgress(98, 'Finalizing report...');
+      await new Promise(r => setTimeout(r, 300));
+      updateProgress(100, 'Report generated successfully!');
+
       setTimeout(() => {
         closeProgressDialog();
-        showNotification('Salary report generated successfully! Check Google Drive.', 'success', 'Report Generated');
-      }, 500);
+        showNotification(
+          'Salary report generated successfully! Check Google Drive for the PDF file.',
+          'success',
+          'Report Generated',
+          6000
+        );
+      }, 800);
     } else {
       closeProgressDialog();
-      showNotification(result.error || 'Operation Failed', 'error', 'Operation Timeout or Failed');
+      showNotification(result.error || 'Failed to generate report', 'error', 'Generation Failed');
     }
   } catch (error) {
     closeProgressDialog();
-    showNotification(error.message || 'Error', 'error', 'Error');
+    showNotification('Connection error: ' + error.message, 'error', 'Connection Error or timeout');
   }
 }
 
