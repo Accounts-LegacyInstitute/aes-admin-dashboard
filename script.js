@@ -1,1088 +1,96 @@
-// Google OAuth Configuration
+// Configuration
 const GOOGLE_CLIENT_ID = '137477957854-prdi3poibskfgdi8kdcg2l2sae54e25b.apps.googleusercontent.com';
-// const REDIRECT_URI = 'https://127.0.0.1:3000/main.html';
-const REDIRECT_URI = 'https://accounts-legacyinstitute.github.io/aes-attendance-system/';
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby_b87CsFkGK5OCANkofOxVEV5LYowXkE3d25NuXH_oqgKAyyBM21UYjQB7wPX1Lz0/exec';
+const REDIRECT_URI = window.location.origin + window.location.pathname;
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxJzkn8wjzl-YUHRxi6blizIi7IJdHQfSSc55VuHaSPq-QnWTB7877myGvjUEOyYUE1/exec';
+const ADMIN_EMAIL = 'acc.legacyinstitute@gmail.com';
+const developer = null;
 
-// State management
+// State
 let currentUser = null;
 let isAuthenticated = false;
+let isEmailVerified = false;
 let isPasskeyVerified = false;
-let staffData = null;
-let sessionActive = false;
-let currentSession = 0;
-let gifAnimationInterval = null;
-let currentGifIndex = 0;
-let passkeyVerificationAttempts = 0;
-const MAX_VERIFICATION_ATTEMPTS = 3;
-let isInitializing = false;
+let verificationCode = '';
+let codeSent = false;
 
-// GIF URLs (Replace these with your actual GIF URLs)
-const PASSKEY_GIFS = [
-  'https://res.cloudinary.com/dhkswq6td/image/upload/v1776421272/GIF_001_xoghff.gif',
-  'https://res.cloudinary.com/dhkswq6td/image/upload/v1776421267/GIF_002_i2ch3v.gif',
-  'https://res.cloudinary.com/dhkswq6td/image/upload/v1776421267/GIF_003_gy2k49.gif'
-];
-
-// Initialize the application
-async function initApp() {
-  // Prevent multiple simultaneous initializations
-  if (isInitializing) return;
-  isInitializing = true;
-
-  console.log('Initializing app...');
-
-  // Check authentication status
+// Initialize
+function initApp() {
   checkAuthStatus();
 
   if (isAuthenticated && currentUser) {
-    console.log('User authenticated:', currentUser.email);
+    if (currentUser.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+      showUnauthorizedScreen();
+      return;
+    }
 
-    // Show loading state while verifying
-    showLoadingScreen('Verifying staff credentials...');
-
-    try {
-      // Verify staff and get details
-      const staffResult = await verifyStaffMember();
-      console.log('Staff verification result:', staffResult);
-
-      if (staffResult && staffResult.success && staffResult.staff) {
-        staffData = staffResult.staff;
-        console.log('Staff data loaded:', staffData);
-
-        // Remove loading screen
-        hideLoadingScreen();
-
-        // Check passkey registration
-        checkPasskeyRegistrationStatus();
-      } else {
-        hideLoadingScreen();
-        const errorMsg = staffResult?.error || 'You are not authorized to access this system.';
-        console.error('Staff verification failed:', errorMsg);
-        showNotification('Not a Verified Staff at The Legacy Institute', 'error', 'Error');
-        logout();
-      }
-    } catch (error) {
-      console.error('Staff verification error:', error);
-      hideLoadingScreen();
-      showNotification('Failed to verify staff credentials', 'error', 'Error');
-      logout();
+    if (isEmailVerified) {
+      showPasskeyVerification();
+    } else {
+      showEmailVerification();
     }
   } else {
-    console.log('No authenticated user, showing login screen');
-    renderApp();
+    renderLoginScreen();
   }
-
-  isInitializing = false;
 }
 
-// Check if user is authenticated with Google
+// Check auth status
 function checkAuthStatus() {
-  const token = localStorage.getItem('google_token');
-  const userData = localStorage.getItem('user_data');
-  const tokenExpiry = localStorage.getItem('token_expiry');
-
-  console.log('Checking auth status - Token exists:', !!token, 'User data exists:', !!userData);
+  const token = localStorage.getItem('admin_token');
+  const userData = localStorage.getItem('admin_user');
+  const tokenExpiry = localStorage.getItem('admin_token_expiry');
 
   if (token && userData && tokenExpiry) {
     const now = new Date().getTime();
     if (now < parseInt(tokenExpiry)) {
-      try {
-        currentUser = JSON.parse(userData);
-        isAuthenticated = true;
-        console.log('Auth valid for:', currentUser.email);
-      } catch (e) {
-        console.error('Failed to parse user data:', e);
-        clearAllAuth();
+      currentUser = JSON.parse(userData);
+      isAuthenticated = true;
+
+      const emailVerified = sessionStorage.getItem('admin_email_verified');
+      if (emailVerified === 'true') {
+        isEmailVerified = true;
       }
     } else {
-      console.log('Token expired, clearing auth');
-      clearAllAuth();
+      clearAuth();
     }
-  } else {
-    console.log('No valid auth data found');
   }
 }
 
-// Clear all authentication data
-function clearAllAuth() {
-  localStorage.removeItem('google_token');
-  localStorage.removeItem('token_expiry');
-  localStorage.removeItem('user_data');
+// Clear auth
+function clearAuth() {
+  localStorage.removeItem('admin_token');
+  localStorage.removeItem('admin_user');
+  localStorage.removeItem('admin_token_expiry');
+  sessionStorage.removeItem('admin_fresh_login');
+  sessionStorage.removeItem('admin_email_verified');
   currentUser = null;
   isAuthenticated = false;
-  staffData = null;
-  sessionActive = false;
-  currentSession = 0;
-}
-
-// Show loading screen while initializing
-function showLoadingScreen(message) {
-  const container = document.getElementById('mainContainer');
-  if (container) {
-    container.innerHTML = `
-            <div class="login-screen">
-                <h2 style="color: white; font-family: var(--default-font);">${message || 'Loading...'}</h2>
-                <div class="verification-spinner" style="margin-top: 20px;"></div>
-            </div>
-        `;
-  }
-}
-
-// Hide loading screen
-function hideLoadingScreen() {
-  const container = document.getElementById('mainContainer');
-  if (container) {
-    container.innerHTML = '';
-  }
-}
-
-// Verify staff member against Google Sheets
-async function verifyStaffMember() {
-  try {
-    if (!currentUser || !currentUser.email) {
-      console.error('No current user');
-      return { success: false, error: 'No user data' };
-    }
-
-    const url = `${APPS_SCRIPT_URL}?action=verifyStaff&email=${encodeURIComponent(currentUser.email)}`;
-    console.log('Verifying staff:', url);
-
-    const response = await fetch(url);
-    const result = await response.json();
-    console.log('Verify result:', result);
-
-    if (result.success && result.staff) {
-      staffData = result.staff;
-      console.log('Staff data set:', staffData);
-      return result;
-    }
-
-    return { success: false, error: result.error || 'Not verified' };
-  } catch (error) {
-    console.error('Verification error:', error);
-    return { success: false, error: 'Connection error' };
-  }
-}
-
-// Get current session status from backend
-async function fetchSessionStatus() {
-  if (!staffData || !staffData.name) return;
-
-  try {
-    const response = await fetch(`${APPS_SCRIPT_URL}?action=checkSession&name=${encodeURIComponent(staffData.name)}`);
-    const result = await response.json();
-
-    if (result.success) {
-      sessionActive = result.hasActiveSession === true;
-      currentSession = result.activeSessionNumber || result.completedSessions || 0;
-      updateButtonStates();
-
-      // Check if there's an active session
-      if (sessionActive) {
-        const element = document.getElementById('lastSession');
-        if (element) {
-          // Fetch active session details
-          const activeSessionUrl = `${APPS_SCRIPT_URL}?action=getActiveSession&name=${encodeURIComponent(staffData.name)}`;
-          const activeRes = await fetch(activeSessionUrl);
-          const activeResult = await activeRes.json();
-
-          if (activeResult.success && activeResult.activeSession) {
-            element.textContent = `Active Session from ${activeResult.activeSession.timeIn}`;
-          } else {
-            element.textContent = 'Active session in progress';
-          }
-        }
-      } else {
-        await fetchLastSession();
-      }
-    }
-  } catch (error) {
-    console.error('Session check failed:', error);
-  }
-}
-
-// Start a new session
-async function startNewSession() {
-  if (!staffData || !staffData.name) return;
-
-  try {
-    showLoadingState('start');
-
-    const formData = new URLSearchParams();
-    formData.append('action', 'startSession');
-    formData.append('name', staffData.name);
-
-    const response = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: formData });
-    const result = await response.json();
-
-    if (result.success) {
-      sessionActive = true;
-      currentSession = result.sessionNumber;
-      updateButtonStates();
-      await fetchLastSession();
-      const sessionNum = result.sessionNumber || result.session || 1;
-      showNotification(`Session ${sessionNum} started at ${result.timeIn}`, 'success', 'Session Started');
-    } else {
-      showNotification(result.error || 'Failed to start session', 'error', 'Error');
-      await fetchSessionStatus();
-    }
-  } catch (error) {
-    showNotification('Connection error', 'error');
-  } finally {
-    updateButtonStates();
-  }
-}
-
-// End current session
-async function endCurrentSession() {
-  if (!staffData || !staffData.name) return;
-
-  try {
-    showLoadingState('end');
-
-    const formData = new URLSearchParams();
-    formData.append('action', 'endSession');
-    formData.append('name', staffData.name);
-
-    const response = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: formData });
-    const result = await response.json();
-
-    if (result.success) {
-      sessionActive = false;
-      updateButtonStates();
-      await fetchLastSession();
-      const sessionNum = result.sessionNumber || result.session || 1;
-      showNotification(`Session ${sessionNum} ended at ${result.timeOut} (${result.duration})`, 'success', 'Session Ended');
-    } else {
-      showNotification(result.error || 'Failed to end session', 'error', 'Error');
-      await fetchSessionStatus();
-    }
-  } catch (error) {
-    showNotification('Connection error', 'error');
-  } finally {
-    updateButtonStates();
-  }
-}
-
-// Get last session info
-async function fetchLastSession() {
-  if (!staffData || !staffData.name) return;
-
-  try {
-    const response = await fetch(`${APPS_SCRIPT_URL}?action=getLastSession&name=${encodeURIComponent(staffData.name)}`);
-    const result = await response.json();
-
-    const element = document.getElementById('lastSession');
-    if (!element) return;
-
-    if (result.success && result.lastSession) {
-      const s = result.lastSession;
-      element.textContent = `${s.date} From ${s.timeIn} To ${s.timeOut}`;
-    } else {
-      element.textContent = 'No previous session recorded';
-    }
-  } catch (error) {
-    const element = document.getElementById('lastSession');
-    if (element) element.textContent = 'Unable to load session data';
-  }
-}
-
-// Update button states based on session status
-function updateButtonStates() {
-  const startBtn = document.getElementById('startSessionBtn');
-  const endBtn = document.getElementById('endSessionBtn');
-
-  if (!startBtn || !endBtn) return;
-
-  console.log('🔘 Updating buttons - Active:', sessionActive);
-
-  if (sessionActive) {
-    startBtn.disabled = true;
-    startBtn.style.opacity = '0.5';
-    startBtn.style.cursor = 'not-allowed';
-    startBtn.innerHTML = '<i class="bx bx-time-five"></i> Session in Progress';
-
-    endBtn.disabled = false;
-    endBtn.style.opacity = '1';
-    endBtn.style.cursor = 'pointer';
-    endBtn.innerHTML = '<i class="bx bxs-exit bx-flashing bx-rotate-180"></i> End Session';
-  } else {
-    startBtn.disabled = false;
-    startBtn.style.opacity = '1';
-    startBtn.style.cursor = 'pointer';
-    startBtn.innerHTML = '<i class="bx bxs-right-top-arrow-circle bx-flashing"></i> Start Session';
-
-    endBtn.disabled = true;
-    endBtn.style.opacity = '0.5';
-    endBtn.style.cursor = 'not-allowed';
-    endBtn.innerHTML = '<i class="bx bxs-exit bx-rotate-180"></i> End Session';
-  }
-}
-
-// Update last session display
-async function updateLastSessionDisplay() {
-  await fetchLastSession();
-}
-
-// Show notification
-function showNotification(message, type = 'info') {
-  // Create notification element
-  const notification = document.createElement('div');
-  notification.className = `notification notification-${type}`;
-  notification.textContent = message;
-
-  // Add styles
-  notification.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: ${type === 'success' ? '#34c759' : type === 'error' ? '#ff3b30' : '#007aff'};
-        color: white;
-        padding: 12px 24px;
-        border-radius: 12px;
-        font-family: var(--default-font);
-        font-size: 14px;
-        z-index: 10000;
-        animation: slideUp 0.3s ease;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    `;
-
-  document.body.appendChild(notification);
-
-  // Remove after 3 seconds
-  setTimeout(() => {
-    notification.style.animation = 'slideDown 0.3s ease';
-    setTimeout(() => {
-      document.body.removeChild(notification);
-    }, 300);
-  }, 3000);
-}
-
-// Show loading state on buttons
-function showLoadingState(buttonType) {
-  const btn = document.getElementById(buttonType === 'start' ? 'startSessionBtn' : 'endSessionBtn');
-  if (btn) {
-    btn.disabled = true;
-    btn.style.opacity = '0.7';
-    if (buttonType === 'start') {
-      btn.innerHTML = '<span class="loading-spinner"></span> Starting Session...';
-    } else {
-      btn.innerHTML = '<span class="loading-spinner"></span> Ending Session...';
-    }
-  }
-}
-
-// Hide loading state
-function hideLoadingState() {
-  updateButtonStates();
-}
-
-// Check if passkey is registered for this device
-function checkPasskeyRegistrationStatus() {
-  const deviceId = getDeviceId();
-  const passkeyRegistered = localStorage.getItem(`passkey_registered_${deviceId}`);
-  const passkeyCredential = localStorage.getItem(`passkey_credential_${deviceId}`);
-
-  if (passkeyRegistered === 'true' && passkeyCredential) {
-    renderDashboardBehindModal();
-    showPasskeyVerification();
-  } else {
-    showPasskeyRegistration();
-  }
-}
-
-async function renderDashboardBehindModal() {
-  const container = document.getElementById('mainContainer');
-
-  container.innerHTML = renderDashboardScreen();
-  updateTime();
-  setInterval(updateTime, 1000);
-  setupDashboardEventListeners();
-  try {
-    await fetchSessionStatus();
-    await fetchLastSession();
-  } catch (e) {
-    console.log('Data fetch behind modal:', e);
-  }
-}
-
-// Generate unique device ID
-function getDeviceId() {
-  let deviceId = localStorage.getItem('device_id');
-  if (!deviceId) {
-    deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    localStorage.setItem('device_id', deviceId);
-  }
-  return deviceId;
-}
-
-// Show passkey verification modal
-function showPasskeyVerification() {
-  const overlay = document.getElementById('passkeyModalOverlay');
-  const modal = document.getElementById('passkeyModal');
-
-  passkeyVerificationAttempts = 0;
-
-  modal.innerHTML = `
-        <div class="modal-content verification-modal">
-            <h2 class="modal-title">Verify It's You</h2>
-            <p class="modal-description">Please verify your identity using your saved passkey for Attendance System access.</p>
-            
-            <div class="animation-container">
-                <i class='bx bx-shield-quarter verification-icon' id="verificationIcon"></i>
-            </div>
-            
-            <button class="passkey-btn" id="verifyPasskeyBtn">
-                <i class='bx bx-fingerprint' style="font-size: 24px;"></i>
-                Verify with Passkey
-            </button>
-            
-            <p class="skip-text" id="skipVerification">Having trouble? Try again later</p>
-        </div>
-    `;
-
-  overlay.classList.add('active');
-
-  // Setup event listeners
-  document.getElementById('verifyPasskeyBtn').addEventListener('click', initiatePasskeyVerification);
-  document.getElementById('skipVerification').addEventListener('click', handleSkipVerification);
-
-  // Auto-initiate verification on mobile
-  if (isMobileDevice()) {
-    setTimeout(initiatePasskeyVerification, 500);
-  }
-}
-
-// Check if device is mobile
-function isMobileDevice() {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-}
-
-// Initiate passkey verification
-async function initiatePasskeyVerification() {
-  const verifyBtn = document.getElementById('verifyPasskeyBtn');
-  const verificationIcon = document.getElementById('verificationIcon');
-
-  // Update UI to loading state
-  verifyBtn.disabled = true;
-  verifyBtn.innerHTML = '<div class="verification-spinner" style="background: #007aff; color: white;border: none;padding: 16px 32px;border-radius: 16px;font-family: var(--default-font); font-size: 18px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; width: 100%; max-width: 300px; box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);"></div> Verifying...';
-  verificationIcon.className = 'bx bx-shield-quarter verification-icon';
-
-  try {
-    // Check if WebAuthn is supported
-    if (!window.PublicKeyCredential) {
-      throw new Error('WebAuthn not supported');
-    }
-
-    // Get the stored credential
-    const deviceId = getDeviceId();
-    const storedCredential = localStorage.getItem(`passkey_credential_${deviceId}`);
-
-    if (!storedCredential) {
-      throw new Error('No passkey registered');
-    }
-
-    // Request passkey verification
-    const result = await verifyPasskeyCredential();
-
-    if (result) {
-      // Successful verification
-      passkeyVerificationAttempts = 0;
-      showVerificationSuccess();
-    }
-  } catch (error) {
-    console.error('Passkey verification failed:', error);
-    passkeyVerificationAttempts++;
-    handleVerificationError(error);
-  }
-}
-
-// Verify passkey credential
-async function verifyPasskeyCredential() {
-  const challenge = new Uint8Array(32);
-  window.crypto.getRandomValues(challenge);
-
-  const deviceId = getDeviceId();
-  const storedCredential = JSON.parse(localStorage.getItem(`passkey_credential_${deviceId}`));
-
-  const publicKey = {
-    challenge: challenge,
-    allowCredentials: [{
-      id: Uint8Array.from(atob(storedCredential.id), c => c.charCodeAt(0)),
-      type: storedCredential.type,
-    }],
-    userVerification: "required",
-    timeout: 60000
-  };
-
-  try {
-    const assertion = await navigator.credentials.get({ publicKey });
-    return assertion;
-  } catch (error) {
-    throw error;
-  }
-}
-
-// Show verification success
-function showVerificationSuccess() {
-  const modal = document.getElementById('passkeyModal');
-
-  modal.innerHTML = `
-    <div class="modal-content verification-modal">
-      <h2 class="modal-title" style="color: #8cb300;">✓ Identity Verified</h2>
-      <p class="modal-description">Your identity has been successfully verified. Welcome back to the Attendance System.</p>
-      <div class="animation-container">
-        <i class='bx bx-check-shield verification-icon success'></i>
-      </div>
-      <button class="passkey-btn" id="continueToDashboardBtn">Continue to Dashboard</button>
-    </div>
-  `;
-
-  document.getElementById('continueToDashboardBtn').addEventListener('click', () => {
-    isPasskeyVerified = true;
-    document.getElementById('passkeyModalOverlay').classList.remove('active');
-    // Dashboard is already rendered, just update buttons
-    updateButtonStates();
-  });
-
-  setTimeout(() => {
-    if (document.getElementById('continueToDashboardBtn')) {
-      isPasskeyVerified = true;
-      document.getElementById('passkeyModalOverlay').classList.remove('active');
-      updateButtonStates();
-    }
-  }, 1500);
-}
-
-// Handle verification error
-function handleVerificationError(error) {
-  const modal = document.getElementById('passkeyModal');
-  const maxAttempts = MAX_VERIFICATION_ATTEMPTS;
-  const remainingAttempts = maxAttempts - passkeyVerificationAttempts;
-
-  if (passkeyVerificationAttempts >= maxAttempts) {
-    // Too many attempts, offer reset
-    modal.innerHTML = `
-            <div class="modal-content verification-modal">
-                <h2 class="modal-title" style="color: #ff3b30;">Verification Failed</h2>
-                <p class="modal-description">You've exceeded the maximum verification attempts. You can reset your passkey or try logging in again later.</p>
-                
-                <div class="animation-container">
-                    <i class='bx bx-x-circle verification-icon error'></i>
-                </div>
-                
-                <p class="attempts-text">Maximum attempts exceeded</p>
-                
-                <div style="display: flex; gap: 12px; width: 100%; max-width: 300px;">
-                    <button class="passkey-btn secondary" id="cancelVerificationBtn">Cancel</button>
-                    <button class="passkey-btn danger" id="resetPasskeyBtn">Reset Passkey</button>
-                </div>
-            </div>
-        `;
-
-    document.getElementById('cancelVerificationBtn').addEventListener('click', () => {
-      document.getElementById('passkeyModalOverlay').classList.remove('active');
-      logout();
-    });
-
-    document.getElementById('resetPasskeyBtn').addEventListener('click', () => {
-      const deviceId = getDeviceId();
-      localStorage.removeItem(`passkey_registered_${deviceId}`);
-      localStorage.removeItem(`passkey_credential_${deviceId}`);
-      passkeyVerificationAttempts = 0;
-      showPasskeyRegistration();
-    });
-  } else {
-    // Allow retry
-    modal.innerHTML = `
-            <div class="modal-content verification-modal">
-                <h2 class="modal-title">Verify It's You</h2>
-                <p class="modal-description">Verification failed. Please try again to verify your identity using your saved passkey.</p>
-                
-                <div class="animation-container">
-                    <i class='bx bx-shield-quarter verification-icon' style="color: #ff3b30;"></i>
-                </div>
-                
-                <p class="attempts-text">${remainingAttempts} ${remainingAttempts === 1 ? 'attempt' : 'attempts'} remaining</p>
-                
-                <button class="passkey-btn" id="retryVerificationBtn">
-                    <i class='bx bx-fingerprint' style="font-size: 24px;"></i>
-                    Try Again
-                </button>
-                
-                <p class="skip-text" id="skipVerification">Having trouble? Try again later</p>
-            </div>
-        `;
-
-    document.getElementById('retryVerificationBtn').addEventListener('click', initiatePasskeyVerification);
-    document.getElementById('skipVerification').addEventListener('click', handleSkipVerification);
-  }
-}
-
-// Handle skip verification
-function handleSkipVerification() {
-  const modal = document.getElementById('passkeyModal');
-
-  modal.innerHTML = `
-        <div class="modal-content verification-modal">
-            <h2 class="modal-title" style="color: #ff9500;">⚠️ Security Warning</h2>
-            <p class="modal-description">Skipping passkey verification will log you out. You'll need to sign in with Google again to access the system.</p>
-            
-            <div class="animation-container">
-                <i class='bx bx-error-circle verification-icon' style="color: #ff9500;"></i>
-            </div>
-            
-            <div style="display: flex; gap: 12px; width: 100%; max-width: 300px;">
-                <button class="passkey-btn secondary" id="returnToVerifyBtn">Go Back</button>
-                <button class="passkey-btn danger" id="confirmLogoutBtn">Logout</button>
-            </div>
-        </div>
-    `;
-
-  document.getElementById('returnToVerifyBtn').addEventListener('click', showPasskeyVerification);
-  document.getElementById('confirmLogoutBtn').addEventListener('click', () => {
-    document.getElementById('passkeyModalOverlay').classList.remove('active');
-    logout();
-  });
-}
-
-// Show passkey registration modal (first time setup)
-function showPasskeyRegistration() {
-  // Show login screen behind registration modal
-  const container = document.getElementById('mainContainer');
-  container.innerHTML = renderLoginScreen();
-
-  const overlay = document.getElementById('passkeyModalOverlay');
-  const modal = document.getElementById('passkeyModal');
-
-  modal.innerHTML = renderPasskeyRegistration();
-  overlay.classList.add('active');
-  startGifAnimation();
-  setupPasskeyEventListeners();
-}
-
-// Render passkey registration modal
-function renderPasskeyRegistration() {
-  return `
-        <div class="modal-content">
-            <h2 class="modal-title">Register a Passkey</h2>
-            <p class="modal-description">Secure your attendance system access with a device passkey. This additional verification layer ensures only you can access your session records and maintains enterprise-grade security for your attendance data.</p>
-            
-            <div class="animation-container" id="animationContainer">
-                <img src="${PASSKEY_GIFS[0]}" alt="Passkey Setup" class="passkey-gif active" id="gif1">
-                <img src="${PASSKEY_GIFS[1]}" alt="Passkey Setup" class="passkey-gif" id="gif2">
-                <img src="${PASSKEY_GIFS[2]}" alt="Passkey Setup" class="passkey-gif" id="gif3">
-            </div>
-            
-            <button class="passkey-btn" id="registerPasskeyBtn">Register Passkey</button>
-        </div>
-    `;
-}
-
-// Start GIF animation sequence
-function startGifAnimation() {
-  const gifs = [
-    document.getElementById('gif1'),
-    document.getElementById('gif2'),
-    document.getElementById('gif3')
-  ];
-
-  const timings = [3000, 6000, 5000]; // 3s, 6s, 5s
-  currentGifIndex = 0;
-
-  function showNextGif() {
-    if (!gifs[currentGifIndex]) return;
-
-    const currentGif = gifs[currentGifIndex];
-    const nextIndex = (currentGifIndex + 1) % gifs.length;
-    const nextGif = gifs[nextIndex];
-
-    // Zoom out current GIF
-    currentGif.classList.add('zoom-out');
-
-    setTimeout(() => {
-      currentGif.classList.remove('active', 'zoom-out');
-
-      // Zoom in next GIF
-      nextGif.classList.add('active');
-
-      currentGifIndex = nextIndex;
-
-      // Schedule next transition
-      gifAnimationInterval = setTimeout(showNextGif, timings[currentGifIndex]);
-    }, 500); // 0.5s for zoom out animation
-  }
-
-  // Start the cycle
-  gifAnimationInterval = setTimeout(showNextGif, timings[0]);
-}
-
-// Stop GIF animation
-function stopGifAnimation() {
-  if (gifAnimationInterval) {
-    clearTimeout(gifAnimationInterval);
-    gifAnimationInterval = null;
-  }
-}
-
-// Setup passkey event listeners
-function setupPasskeyEventListeners() {
-  const registerBtn = document.getElementById('registerPasskeyBtn');
-  if (registerBtn) {
-    registerBtn.addEventListener('click', handlePasskeyRegistration);
-  }
-}
-
-// Handle passkey registration
-async function handlePasskeyRegistration() {
-  const modal = document.getElementById('passkeyModal');
-
-  // Show verification in progress
-  modal.innerHTML = `
-        <div class="modal-content verification-modal">
-            <h2 class="modal-title">Setting Up Passkey</h2>
-            <p class="modal-description">Please authenticate using your device's passkey, fingerprint, Face ID, or PIN to complete registration.</p>
-            <div class="verification-spinner"></div>
-            <p class="modal-description" style="margin-top: 20px; font-size: 14px;">Follow the prompts on your device</p>
-        </div>
-    `;
-
-  try {
-    // Check if WebAuthn is supported
-    if (!window.PublicKeyCredential) {
-      throw new Error('WebAuthn not supported');
-    }
-
-    // Create passkey credential
-    const credential = await createPasskeyCredential();
-
-    if (credential) {
-      // Store passkey registration for this device
-      const deviceId = getDeviceId();
-      localStorage.setItem(`passkey_registered_${deviceId}`, 'true');
-      localStorage.setItem(`passkey_credential_${deviceId}`, JSON.stringify({
-        id: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
-        type: credential.type
-      }));
-
-      // Show success and close modal
-      showPasskeySetupSuccess();
-    }
-  } catch (error) {
-    console.error('Passkey registration failed:', error);
-    showPasskeyError();
-  }
-}
-
-// Create passkey credential
-async function createPasskeyCredential() {
-  const challenge = new Uint8Array(32);
-  window.crypto.getRandomValues(challenge);
-
-  const publicKey = {
-    challenge: challenge,
-    rp: {
-      name: "Attendance System",
-      id: window.location.hostname
-    },
-    user: {
-      id: new Uint8Array(16),
-      name: currentUser.email,
-      displayName: currentUser.name
-    },
-    pubKeyCredParams: [
-      { type: "public-key", alg: -7 }, // ES256
-      { type: "public-key", alg: -257 } // RS256
-    ],
-    authenticatorSelection: {
-      authenticatorAttachment: "platform",
-      userVerification: "required",
-      residentKey: "required"
-    },
-    timeout: 60000,
-    attestation: "none"
-  };
-
-  return await navigator.credentials.create({ publicKey });
-}
-
-// Show passkey setup success
-function showPasskeySetupSuccess() {
-  stopGifAnimation();
-
-  const modal = document.getElementById('passkeyModal');
-  modal.innerHTML = `
-        <div class="modal-content">
-            <h2 class="modal-title" style="color: #34c759;">✓ Passkey Registered</h2>
-            <p class="modal-description">Your device passkey has been successfully registered. You'll use this to verify your identity each time you access the attendance system.</p>
-            
-            <div class="animation-container">
-                <i class='bx bx-check-circle' style="font-size: 200px; color: #34c759; animation: zoomIn 0.5s ease;"></i>
-            </div>
-            
-            <button class="passkey-btn" id="continueToAppBtn">Continue to Dashboard</button>
-        </div>
-    `;
-
-  document.getElementById('continueToAppBtn').addEventListener('click', () => {
-    isPasskeyVerified = true;
-    document.getElementById('passkeyModalOverlay').classList.remove('active');
-    renderApp();
-  });
-
-  // Auto continue after 2 seconds
-  setTimeout(() => {
-    if (document.getElementById('continueToAppBtn')) {
-      isPasskeyVerified = true;
-      document.getElementById('passkeyModalOverlay').classList.remove('active');
-      renderApp();
-    }
-  }, 2000);
-}
-
-// Show passkey error
-function showPasskeyError() {
-  stopGifAnimation();
-
-  const modal = document.getElementById('passkeyModal');
-  modal.innerHTML = `
-        <div class="modal-content">
-            <h2 class="modal-title" style="color: #ff3b30;">Something Went Wrong</h2>
-            <p class="modal-description">We encountered an issue while attempting to register your passkey. This may be due to device compatibility or permission settings. Please ensure your device supports passkeys and try again.</p>
-            
-            <div class="animation-container">
-                <i class='bx bx-x-circle bx-flashing' style="font-size: 200px; color: #ff3b30;"></i>
-            </div>
-            
-            <div style="display: flex; gap: 12px; width: 100%; max-width: 300px;">
-                <button class="passkey-btn secondary" id="cancelPasskeyBtn">Cancel</button>
-                <button class="passkey-btn" id="retryPasskeyBtn">Try Again</button>
-            </div>
-        </div>
-    `;
-
-  document.getElementById('retryPasskeyBtn').addEventListener('click', () => {
-    showPasskeyRegistration();
-  });
-
-  document.getElementById('cancelPasskeyBtn').addEventListener('click', () => {
-    document.getElementById('passkeyModalOverlay').classList.remove('active');
-    logout();
-  });
-}
-
-// Render the appropriate screen based on auth status
-async function renderApp() {
-  const container = document.getElementById('mainContainer');
-
-  if (!container) {
-    console.error('Main container not found');
-    return;
-  }
-
-  console.log('renderApp called - Auth:', isAuthenticated, 'Passkey:', isPasskeyVerified, 'StaffData:', !!staffData);
-
-  if (isAuthenticated && currentUser && isPasskeyVerified && staffData) {
-    // Render dashboard
-    container.innerHTML = renderDashboardScreen();
-
-    // Update time immediately
-    updateTime();
-    setInterval(updateTime, 1000);
-
-    // Setup event listeners
-    setupDashboardEventListeners();
-
-    // Fetch session data
-    try {
-      await fetchSessionStatus();
-      await fetchLastSession();
-    } catch (error) {
-      console.error('Error fetching session data:', error);
-    }
-  } else if (isAuthenticated && currentUser && !isPasskeyVerified && staffData) {
-    // Should be showing passkey modal, but if somehow we got here
-    console.log('Passkey not verified, checking passkey status');
-    checkPasskeyRegistrationStatus();
-  } else {
-    // Show login screen
-    container.innerHTML = renderLoginScreen();
-    setupLoginEventListener();
-    updateGreeting();
-  }
-}
-
-// Get greeting based on time of day
-function getTimedGreeting() {
-  const hour = new Date().getHours();
-
-  if (hour >= 5 && hour < 12) {
-    return 'Good Morning';
-  } else if (hour >= 12 && hour < 17) {
-    return 'Good Afternoon';
-  } else if (hour >= 17 && hour < 22) {
-    return 'Good Evening';
-  } else {
-    return 'Good Night';
-  }
-}
-
-// Update greeting text periodically
-function updateGreeting() {
-  const greetingElement = document.getElementById('timedGreeting');
-  if (greetingElement) {
-    greetingElement.textContent = `${getTimedGreeting()}!`;
-  }
+  isEmailVerified = false;
+  isPasskeyVerified = false;
 }
 
 // Render login screen
 function renderLoginScreen() {
-  return `
-        <div class="login-screen">
-            <h1 id="timedGreeting">${getTimedGreeting()}!</h1>
-            <p class="description">Welcome to the Automated Attendance System with precise session tracking and comprehensive time management solutions.</p>
-            <p class="sub-description">Please authenticate with your Google account to initiate session tracking and update your attendance records.</p>
-            <button class="google-login-btn" id="googleLoginBtn">
-                <img src="https://www.google.com/favicon.ico" alt="Google Logo" 
-                     onerror="this.src='https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png'">
-                Continue with Google
-            </button>
-        </div>
-    `;
+  document.getElementById('mainContainer').innerHTML = `
+    <div class="login-screen">
+      <i class='bx bx-shield-quarter admin-icon'></i>
+      <h1>Admin Dashboard</h1>
+      <span class="admin-badge">🔒 Restricted Access</span>
+      <p class="description">
+        Secure administration panel for managing staff attendance records, 
+        generating salary reports, and overseeing system operations.
+      </p>
+      <button class="google-login-btn" id="googleLoginBtn">
+        <img src="https://www.google.com/favicon.ico" alt="Google" 
+             onerror="this.src='https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png'">
+        Sign in with Google
+      </button>
+    </div>
+  `;
+
+  document.getElementById('googleLoginBtn').addEventListener('click', initiateGoogleLogin);
 }
 
-// Render dashboard screen (Updated)
-function renderDashboardScreen() {
-  // Safety check - ensure we have all required data
-  if (!currentUser || !staffData) {
-    console.error('Cannot render dashboard: missing user or staff data', {
-      hasUser: !!currentUser,
-      hasStaffData: !!staffData
-    });
-    renderLoginScreen();
-    return '';
-  }
-
-  const staffName = staffData.name || currentUser.name || 'User';
-  const staffEmail = currentUser.email || 'No email';
-  const profilePicture = currentUser.picture || 'default-profile.jpg';
-
-  console.log('Rendering dashboard for:', staffName);
-
-  return `
-        <div class="dashboard-screen">
-            <div class="time-block">
-                <h1 id="time">--:-- --</h1>
-                <p id="date">Loading date...</p>
-            </div>
-
-            <div class="profile">
-                <img src="${profilePicture}" alt="profile picture" id="profileImage" 
-                     onerror="this.src='https://via.placeholder.com/150'">
-                <h2 id="userName">${staffName}</h2>
-                <p id="userEmail">${staffEmail}</p>
-            </div>
-
-          <div class="icon-row">
-            <div class="icon-box" id="logoutBtn"><i class='bx bx-log-out'></i><text>Logout</text></div>
-            <div class="icon-box" id="recentLogBtn"><i class='ri-information-line'></i><text>Recent Log</text></div>
-            <div class="icon-box" id="myActivityBtn"><i class='ri-shield-user-line'></i><text>My Activity</text></div>
-            <div class="icon-box" id="myAccountBtn"><i class='ri-google-fill'></i><text>My Account</text></div>
-          </div>
-
-            <div class="session-info">
-                <h4>Last Session</h4>
-                <p id="lastSession">Loading session data...</p>
-            </div>
-
-            <div class="buttons">
-                <button class="start" id="startSessionBtn" ${sessionActive ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>
-                    <i class='bx bxs-right-top-arrow-circle bx-flashing'></i> Start Session
-                </button>
-                <button class="end" id="endSessionBtn" ${!sessionActive ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>
-                    <i class='bx bxs-exit bx-rotate-180'></i> End Session
-                </button>
-            </div>
-        </div>
-    `;
-}
-
-// Setup login event listener
-function setupLoginEventListener() {
-  const loginBtn = document.getElementById('googleLoginBtn');
-  if (loginBtn) {
-    loginBtn.addEventListener('click', initiateGoogleLogin);
-  }
-
-  // Update greeting every minute
-  setInterval(updateGreeting, 60000);
-}
-
-// Setup dashboard event listeners
-function setupDashboardEventListeners() {
-  const logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', logout);
-  }
-
-  const startBtn = document.getElementById('startSessionBtn');
-  const endBtn = document.getElementById('endSessionBtn');
-
-  if (startBtn) startBtn.addEventListener('click', startNewSession);
-  if (endBtn) endBtn.addEventListener('click', endCurrentSession);
-
-  const recentLogBtn = document.getElementById('recentLogBtn');
-  if (recentLogBtn) {
-    recentLogBtn.addEventListener('click', showRecentSessions);
-  }
-
-  const myActivityBtn = document.getElementById('myActivityBtn');
-  if (myActivityBtn) {
-    myActivityBtn.addEventListener('click', () => {
-      window.open('https://myactivity.google.com/myactivity?hl=en&utm_source=google-account&utm_medium=web&pli=1', '_blank');
-    });
-  }
-
-  const myAccountBtn = document.getElementById('myAccountBtn');
-  if (myAccountBtn) {
-    myAccountBtn.addEventListener('click', () => {
-      window.open('https://myaccount.google.com/?utm_source=OGB&utm_medium=app', '_blank');
-    });
-  }
-}
-
-// Update time function
-function updateTime() {
-  const now = new Date();
-
-  const optionsTime = {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  };
-
-  const optionsDate = {
-    weekday: 'short',
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric'
-  };
-
-  const timeElement = document.getElementById("time");
-  const dateElement = document.getElementById("date");
-
-  if (timeElement) {
-    timeElement.innerText = now.toLocaleTimeString([], optionsTime);
-  }
-
-  if (dateElement) {
-    dateElement.innerText = now.toLocaleDateString([], optionsDate);
-  }
-}
-
-// Initialize Google OAuth
+// Google Login
 function initiateGoogleLogin() {
   const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
   const params = new URLSearchParams({
@@ -1090,13 +98,10 @@ function initiateGoogleLogin() {
     redirect_uri: REDIRECT_URI,
     response_type: 'token',
     scope: 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
-    include_granted_scopes: 'true',
-    state: 'pass-through-value'
+    state: 'admin-pass-through'
   });
 
-  // Open OAuth popup or redirect
-  const width = 500;
-  const height = 600;
+  const width = 500, height = 600;
   const left = (screen.width - width) / 2;
   const top = (screen.height - height) / 2;
 
@@ -1106,11 +111,9 @@ function initiateGoogleLogin() {
     `width=${width},height=${height},left=${left},top=${top}`
   );
 
-  // For mobile devices or if popup is blocked
-  if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+  if (!popup || popup.closed) {
     window.location.href = `${authUrl}?${params.toString()}`;
   } else {
-    // Listen for OAuth callback
     window.addEventListener('message', handleOAuthCallback, false);
   }
 }
@@ -1118,12 +121,11 @@ function initiateGoogleLogin() {
 // Handle OAuth callback
 function handleOAuthCallback(event) {
   if (event.data && event.data.type === 'oauth-callback') {
-    const hash = event.data.hash;
-    handleAuthResponse(hash);
+    handleAuthResponse(event.data.hash);
   }
 }
 
-// Handle authentication response
+// Hande auth response
 async function handleAuthResponse(hash) {
   const params = new URLSearchParams(hash.substring(1));
   const accessToken = params.get('access_token');
@@ -1131,81 +133,918 @@ async function handleAuthResponse(hash) {
 
   if (accessToken) {
     try {
-      // Fetch user info from Google
       const response = await fetch('https://www.googleapis.com/oauth2/v1/userinfo?alt=json', {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
+        headers: { 'Authorization': `Bearer ${accessToken}` }
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch user info');
-      }
-
       const userData = await response.json();
-      console.log('User data received:', userData);
 
-      // Store auth data
       const expiryTime = new Date().getTime() + (parseInt(expiresIn) * 1000);
-      localStorage.setItem('google_token', accessToken);
-      localStorage.setItem('token_expiry', expiryTime.toString());
-      localStorage.setItem('user_data', JSON.stringify(userData));
+      localStorage.setItem('admin_token', accessToken);
+      localStorage.setItem('admin_token_expiry', expiryTime.toString());
+      localStorage.setItem('admin_user', JSON.stringify(userData));
+
+      sessionStorage.setItem('admin_fresh_login', 'true');
 
       currentUser = userData;
       isAuthenticated = true;
 
-      // Initialize app with new auth data
-      await initApp();
+      handlePostLogin();
     } catch (error) {
-      console.error('Error fetching user info:', error);
-      showNotification('Authentication failed. Please try again later.', 'error', 'Authentication failed');
-      renderApp();
+      showNotification('Authentication failed or timeout. Please try again later.', 'error', 'Authentication Failed');
+      renderLoginScreen();
+    }
+  }
+}
+
+// Handle post-login flow
+async function handlePostLogin() {
+  // Check if user is admin
+  if (currentUser.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+    showUnauthorizedScreen();
+    return;
+  }
+
+  // Check if email was already verified in this session
+  const emailVerified = sessionStorage.getItem('admin_email_verified');
+
+  // Check if this is a FRESH Google login
+  const isFreshLogin = sessionStorage.getItem('admin_fresh_login') === 'true';
+
+  if (isFreshLogin && !emailVerified) {
+    // Clear the fresh login flag
+    sessionStorage.removeItem('admin_fresh_login');
+    // New login = require email verification
+    showEmailVerification();
+  } else if (emailVerified === 'true') {
+    // Already verified in this session = skip to passkey
+    showPasskeyVerification();
+  } else {
+    // Fallback: verify email
+    showEmailVerification();
+  }
+}
+
+// Show email verification screen
+function showEmailVerification() {
+  const overlay = document.getElementById('modalOverlay');
+  const container = document.getElementById('modalContainer');
+
+  container.innerHTML = `
+    <div class="verification-content">
+      <i class='bx bx-envelope email-icon'></i>
+      <h2>Verify Your Email</h2>
+      <p class="email-display">${currentUser.email}</p>
+      <p class="description">
+        A verification code will be sent to your admin email address. 
+        Please enter the 8-digit code to continue accessing the admin dashboard.
+      </p>
+      <button class="send-code-btn" id="sendCodeBtn" onclick="sendVerificationCode()">
+        <i class='bx bx-send'></i> Send Verification Code
+      </button>
+      <div id="codeInputSection" style="display:none; margin-top:20px; width:100%;"></div>
+    </div>
+  `;
+
+  overlay.classList.add('active');
+}
+
+// Send verification code
+async function sendVerificationCode() {
+  const sendBtn = document.getElementById('sendCodeBtn');
+  sendBtn.disabled = true;
+  sendBtn.innerHTML = '<span class="spinner"></span> Sending...';
+
+  try {
+    const url = APPS_SCRIPT_URL + '?action=sendVerificationCode&email=' + encodeURIComponent(currentUser.email);
+    console.log('Send code URL:', url);
+
+    const response = await fetch(url);
+    const text = await response.text();
+    console.log('Send code response:', text);
+
+    let result;
+    try {
+      result = JSON.parse(text);
+    } catch (e) {
+      throw new Error('Invalid server response');
+    }
+
+    if (result.success) {
+      codeSent = true;
+      showCodeInputSection();
+    } else {
+      showNotification('Failed to send verification code. Please try again later', 'error', 'Verification failed');
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = '<i class="bx bx-send"></i> Send Verification Code';
+    }
+  } catch (error) {
+    console.error('Send code error:', error);
+    showNotification(error.message || 'Connection failed :', 'error', 'Connection Error');
+    sendBtn.disabled = false;
+    sendBtn.innerHTML = '<i class="bx bx-send"></i> Send Verification Code';
+  }
+}
+
+// Show code input section
+function showCodeInputSection() {
+  const section = document.getElementById('codeInputSection');
+  section.style.display = 'block';
+  section.innerHTML = `
+    <p style="color: var(--success); font-weight: 500; margin-bottom: 15px;">
+      <i class='bx bx-check-circle'></i> Code sent to ${currentUser.email}
+    </p>
+    <div class="code-inputs" id="codeInputs">
+      ${Array(8).fill(0).map((_, i) =>
+    `<input type="tel" class="code-input" id="code${i}" maxlength="1" 
+         inputmode="numeric" pattern="[0-9]" oninput="handleCodeInput(${i})" 
+         onkeydown="handleCodeKeydown(event, ${i})" autocomplete="off">`
+  ).join('')}
+    </div>
+    <div class="button-group" style="margin-top: 20px;">
+      <button class="btn btn-secondary" onclick="resendCode()">
+        <i class='bx bx-refresh'></i> Resend Code
+      </button>
+      <button class="btn btn-primary" id="confirmCodeBtn" disabled onclick="verifyCode()">
+        <i class='bx bx-check'></i> Confirm Code
+      </button>
+    </div>
+    <p id="codeError" style="color: var(--danger); font-size: 13px; margin-top: 10px; display: none;"></p>
+  `;
+
+  // Focus first input
+  setTimeout(() => document.getElementById('code0').focus(), 100);
+
+  // Hide send button
+  document.getElementById('sendCodeBtn').style.display = 'none';
+}
+
+// Handle code input
+function handleCodeInput(index) {
+  const input = document.getElementById(`code${index}`);
+  const value = input.value.replace(/[^0-9]/g, '');
+  input.value = value;
+
+  if (value) {
+    input.classList.add('filled');
+    // Move to next input
+    if (index < 7) {
+      document.getElementById(`code${index + 1}`).focus();
     }
   } else {
-    console.error('No access token in response');
-    showNotification('Authentication failed. Please try again later.', 'error', 'Authentication failed');
-    renderApp();
+    input.classList.remove('filled');
+  }
+
+  // Check if all inputs filled
+  checkAllInputsFilled();
+}
+
+// Handle keydown for backspace
+function handleCodeKeydown(event, index) {
+  if (event.key === 'Backspace' && !document.getElementById(`code${index}`).value && index > 0) {
+    document.getElementById(`code${index - 1}`).focus();
   }
 }
 
-// Logout function
-function logout() {
+// Check all inputs filled
+function checkAllInputsFilled() {
+  let allFilled = true;
+  for (let i = 0; i < 8; i++) {
+    if (!document.getElementById(`code${i}`).value) {
+      allFilled = false;
+      break;
+    }
+  }
+
+  document.getElementById('confirmCodeBtn').disabled = !allFilled;
+}
+
+// Resend code
+async function resendCode() {
+  const resendBtn = document.querySelector('.btn-secondary');
+  resendBtn.disabled = true;
+  resendBtn.innerHTML = '<span class="spinner"></span> Resending...';
+
+  try {
+    const response = await fetch(`${APPS_SCRIPT_URL}?action=sendVerificationCode&email=${encodeURIComponent(currentUser.email)}`);
+    const result = await response.json();
+
+    if (result.success) {
+      verificationCode = result.code;
+      // Clear inputs
+      for (let i = 0; i < 8; i++) {
+        document.getElementById(`code${i}`).value = '';
+        document.getElementById(`code${i}`).classList.remove('filled');
+      }
+      document.getElementById('code0').focus();
+      document.getElementById('confirmCodeBtn').disabled = true;
+
+      // Show success message
+      const errorEl = document.getElementById('codeError');
+      errorEl.style.display = 'block';
+      errorEl.style.color = 'var(--success)';
+      errorEl.textContent = 'New code sent successfully!';
+      setTimeout(() => { errorEl.style.display = 'none'; }, 3000);
+    }
+  } catch (error) {
+    showNotification('Failed to resend verification code. Please try again later.', 'error', 'Code Resend Error');
+  } finally {
+    resendBtn.disabled = false;
+    resendBtn.innerHTML = '<i class="bx bx-refresh"></i> Resend Code';
+  }
+}
+
+// Verify code
+async function verifyCode() {
+  let enteredCode = '';
+  for (let i = 0; i < 8; i++) {
+    enteredCode += document.getElementById(`code${i}`).value;
+  }
+
+  const errorEl = document.getElementById('codeError');
+  const confirmBtn = document.getElementById('confirmCodeBtn');
+
+  confirmBtn.disabled = true;
+  confirmBtn.innerHTML = '<span class="spinner"></span> Verifying...';
+
+  try {
+    const url = `${APPS_SCRIPT_URL}?action=verifyCode&email=${encodeURIComponent(currentUser.email)}&code=${enteredCode}`;
+    const response = await fetch(url);
+    const result = await response.json();
+
+    if (result.success) {
+      isEmailVerified = true;
+      sessionStorage.setItem('admin_email_verified', 'true');
+      document.getElementById('modalOverlay').classList.remove('active');
+      showPasskeyVerification();
+    } else {
+      errorEl.style.display = 'block';
+      errorEl.textContent = result.error || 'Invalid code';
+      clearCodeInputs();
+    }
+  } catch (error) {
+    errorEl.style.display = 'block';
+    errorEl.textContent = 'Verification failed. Please try again.';
+    clearCodeInputs();
+  } finally {
+    confirmBtn.disabled = false;
+    confirmBtn.innerHTML = '<i class="bx bx-check"></i> Confirm Code';
+  }
+}
+
+function clearCodeInputs() {
+  for (let i = 0; i < 8; i++) {
+    document.getElementById(`code${i}`).value = '';
+    document.getElementById(`code${i}`).classList.remove('filled');
+  }
+  document.getElementById('code0').focus();
+  document.getElementById('confirmCodeBtn').disabled = true;
+}
+
+// Show passkey verification
+const PASSKEY_GIFS = [
+  'https://res.cloudinary.com/dhkswq6td/image/upload/v1776421272/GIF_001_xoghff.gif',
+  'https://res.cloudinary.com/dhkswq6td/image/upload/v1776421267/GIF_002_i2ch3v.gif',
+  'https://res.cloudinary.com/dhkswq6td/image/upload/v1776421267/GIF_003_gy2k49.gif'
+];
+
+let gifAnimationInterval = null;
+let currentGifIndex = 0;
+
+function showPasskeyVerification() {
+  const overlay = document.getElementById('modalOverlay');
+  const container = document.getElementById('modalContainer');
+
   const deviceId = getDeviceId();
+  const passkeyRegistered = localStorage.getItem(`admin_passkey_${deviceId}`);
 
-  // Keep passkey data for future verification
-  clearAllAuth();
-  isPasskeyVerified = false;
-  passkeyVerificationAttempts = 0;
+  overlay.classList.add('active');
 
-  console.log('Logged out, redirecting to login screen');
+  if (passkeyRegistered === 'true') {
+    container.innerHTML = `
+      <div class="modal-content verification-modal">
+        <h2 class="modal-title">Verify It's You</h2>
+        <p class="modal-description">Please verify your identity using your saved passkey for Admin Dashboard access.</p>
+        
+        <div class="animation-container">
+          <i class='bx bx-shield-quarter verification-icon' id="verificationIcon"></i>
+        </div>
+        
+        <button class="passkey-btn" id="verifyPasskeyBtn">
+          <i class='bx bx-fingerprint' style="font-size: 24px;"></i>
+          Verify with Passkey
+        </button>
+        
+        <p class="skip-text" id="skipVerification">Having trouble? Try again later</p>
+      </div>
+    `;
 
-  // Close any open modals
-  const overlay = document.getElementById('passkeyModalOverlay');
-  if (overlay) {
-    overlay.classList.remove('active');
+    document.getElementById('verifyPasskeyBtn').addEventListener('click', verifyPasskey);
+    document.getElementById('skipVerification').addEventListener('click', () => {
+      clearAuth();
+      overlay.classList.remove('active');
+      renderLoginScreen();
+    });
+
+    if (isMobileDevice()) {
+      setTimeout(verifyPasskey, 500);
+    }
+  } else {
+    container.innerHTML = `
+      <div class="modal-content">
+        <h2 class="modal-title">Register a Passkey</h2>
+        <p class="modal-description">Secure your admin dashboard access with a device passkey. This additional verification layer ensures only you can access sensitive administrative functions and maintains enterprise-grade security.</p>
+        
+        <div class="animation-container" id="animationContainer">
+          <img src="${PASSKEY_GIFS[0]}" alt="Passkey Setup" class="passkey-gif active" id="gif1">
+          <img src="${PASSKEY_GIFS[1]}" alt="Passkey Setup" class="passkey-gif" id="gif2">
+          <img src="${PASSKEY_GIFS[2]}" alt="Passkey Setup" class="passkey-gif" id="gif3">
+        </div>
+        
+        <button class="passkey-btn" id="registerPasskeyBtn">Register Passkey</button>
+      </div>
+    `;
+
+    startGifAnimation();
+    document.getElementById('registerPasskeyBtn').addEventListener('click', registerPasskey);
   }
-
-  renderApp();
 }
 
-// Check for OAuth callback on page load
+function startGifAnimation() {
+  const gifs = [
+    document.getElementById('gif1'),
+    document.getElementById('gif2'),
+    document.getElementById('gif3')
+  ];
+
+  if (!gifs[0]) return;
+
+  const timings = [3000, 6000, 5000];
+  currentGifIndex = 0;
+
+  function showNextGif() {
+    if (!gifs[currentGifIndex]) return;
+
+    const currentGif = gifs[currentGifIndex];
+    const nextIndex = (currentGifIndex + 1) % gifs.length;
+    const nextGif = gifs[nextIndex];
+
+    currentGif.classList.add('zoom-out');
+
+    setTimeout(() => {
+      currentGif.classList.remove('active', 'zoom-out');
+      nextGif.classList.add('active');
+      currentGifIndex = nextIndex;
+      gifAnimationInterval = setTimeout(showNextGif, timings[currentGifIndex]);
+    }, 500);
+  }
+
+  gifAnimationInterval = setTimeout(showNextGif, timings[0]);
+}
+
+function isMobileDevice() {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+// Get device ID
+function getDeviceId() {
+  let deviceId = localStorage.getItem('admin_device_id');
+  if (!deviceId) {
+    deviceId = 'admin_device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('admin_device_id', deviceId);
+  }
+  return deviceId;
+}
+
+// Register passkey
+async function registerPasskey() {
+  try {
+    if (!window.PublicKeyCredential) {
+      throw new Error('WebAuthn not supported');
+    }
+
+    const challenge = new Uint8Array(32);
+    window.crypto.getRandomValues(challenge);
+
+    const publicKey = {
+      challenge: challenge,
+      rp: { name: "Admin Dashboard", id: window.location.hostname },
+      user: {
+        id: new Uint8Array(16),
+        name: currentUser.email,
+        displayName: currentUser.name
+      },
+      pubKeyCredParams: [
+        { type: "public-key", alg: -7 },
+        { type: "public-key", alg: -257 }
+      ],
+      authenticatorSelection: {
+        authenticatorAttachment: "platform",
+        userVerification: "required",
+        residentKey: "required"
+      },
+      timeout: 60000,
+      attestation: "none"
+    };
+
+    const credential = await navigator.credentials.create({ publicKey });
+
+    if (credential) {
+      const deviceId = getDeviceId();
+      localStorage.setItem(`admin_passkey_${deviceId}`, 'true');
+      localStorage.setItem(`admin_passkey_cred_${deviceId}`, JSON.stringify({
+        id: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
+        type: credential.type
+      }));
+
+      isPasskeyVerified = true;
+      document.getElementById('modalOverlay').classList.remove('active');
+      renderDashboard();
+    }
+  } catch (error) {
+    console.error('Passkey registration failed:', error);
+    showNotification('Passkey Registration failed. Please try again later.', 'error', 'Passkey Failed');
+  }
+}
+
+// Verify passkey
+async function verifyPasskey() {
+  try {
+    const deviceId = getDeviceId();
+    const storedCred = JSON.parse(localStorage.getItem(`admin_passkey_cred_${deviceId}`));
+
+    const challenge = new Uint8Array(32);
+    window.crypto.getRandomValues(challenge);
+
+    const publicKey = {
+      challenge: challenge,
+      allowCredentials: [{
+        id: Uint8Array.from(atob(storedCred.id), c => c.charCodeAt(0)),
+        type: storedCred.type,
+      }],
+      userVerification: "required",
+      timeout: 60000
+    };
+
+    const assertion = await navigator.credentials.get({ publicKey });
+
+    if (assertion) {
+      isPasskeyVerified = true;
+      document.getElementById('modalOverlay').classList.remove('active');
+      renderDashboard();
+    }
+  } catch (error) {
+    console.error('Passkey verification failed:', error);
+    showNotification('Passkey Verification failed. Please try again later or check whether your device supports passkey verification.', 'error', 'Passkey Verification Failed');
+  }
+}
+
+// Show unauthorized screen
+function showUnauthorizedScreen() {
+  const overlay = document.getElementById('modalOverlay');
+  const container = document.getElementById('modalContainer');
+
+  container.innerHTML = `
+    <div class="unauthorized-content">
+      <i class='bx bx-block warning-icon'></i>
+      <h2>Unauthorized Access</h2>
+      <p class="description">
+        This admin dashboard is restricted to authorized administrators only.
+        Your email (${currentUser.email}) does not have admin privileges.
+      </p>
+      <div class="button-group" style="margin-top: 20px;">
+        <button class="btn btn-secondary" onclick="exitDashboard()">
+          <i class='bx bx-exit'></i> Exit Dashboard
+        </button>
+        <button class="btn btn-primary" onclick="retryAdminLogin()">
+          <i class='bx bx-refresh'></i> Retry with Admin Account
+        </button>
+      </div>
+    </div>
+  `;
+
+  overlay.classList.add('active');
+}
+
+// Exit dashboard
+function exitDashboard() {
+  clearAuth();
+  window.close();
+  // Fallback if window.close() doesn't work
+  document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-size:24px;">Dashboard closed. You can close this tab.</div>';
+}
+
+// Retry admin login
+function retryAdminLogin() {
+  clearAuth();
+  document.getElementById('modalOverlay').classList.remove('active');
+  renderLoginScreen();
+}
+
+// Render admin dashboard
+function renderDashboard() {
+  const now = new Date();
+  const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+  const formattedDate = now.toLocaleDateString('en-US', options);
+
+  document.getElementById('mainContainer').innerHTML = `
+    <div class="salary-generator-container" style="display:flex;justify-content:center;align-items:center;min-height:100%;padding:40px;width:100%;">
+      <div class="salary-hero" style="text-align:center;max-width:500px;">
+        <img src="https://res.cloudinary.com/dhkswq6td/image/upload/v1765611889/Receipt_Format_hunxj7.png" 
+             alt="Salary Report" style="width:120px;margin-bottom:20px;">
+        <h2 style="font-family:var(--default-font);font-size:28px;color:#0f172a;margin-bottom:10px;">Generate Salary Report</h2>
+        <p style="color:#64748b;font-size:15px;line-height:1.6;margin-bottom:25px;">Generate reports and summarize staff salary details. Click 'Generate Report' below to generate a new Salary Report with different criteria applied.</p>
+        <button class="generate-report-btn" id="generateReportBtn" onclick="openSalaryDialog()" style="background:#1a73e8;color:white;border:none;padding:14px 30px;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
+          <i class="fas fa-file-invoice"></i> Generate Report
+        </button>
+        <button class="logout-btn" onclick="logoutAdmin()" style="margin-top:20px;background:#ef4444;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px;">
+          <i class="bx bx-log-out"></i> Logout
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+// Load salary generator
+async function loadSalaryGenerator() {
+  const contentDiv = document.getElementById('dynamicContent');
+  contentDiv.style.display = 'block';
+  contentDiv.innerHTML = `
+    <h2><i class='bx bx-calculator'></i> Salary Generator</h2>
+    <div class="staff-list" id="staffList">
+      <p>Loading staff data...</p>
+    </div>
+  `;
+
+  try {
+    const response = await fetch(`${APPS_SCRIPT_URL}?action=getAllStaffHours`);
+    const result = await response.json();
+
+    if (result.success && result.staff) {
+      let html = '';
+      result.staff.forEach(staff => {
+        html += `
+          <div class="staff-item">
+            <div class="staff-info">
+              <h4>${staff.name}</h4>
+              <p>${staff.email}</p>
+            </div>
+            <div class="staff-hours">
+              ${staff.totalHours} hrs this month
+            </div>
+          </div>
+        `;
+      });
+      document.getElementById('staffList').innerHTML = html;
+    }
+  } catch (error) {
+    document.getElementById('staffList').innerHTML = '<p style="color:red;">Failed to load staff data</p>';
+  }
+}
+
+// Other dashboard functions
+function loadStaffOverview() {
+  const contentDiv = document.getElementById('dynamicContent');
+  contentDiv.style.display = 'block';
+  contentDiv.innerHTML = '<h2><i class="bx bx-group"></i> Staff Overview</h2><p>Coming soon...</p>';
+}
+
+function loadReports() {
+  const contentDiv = document.getElementById('dynamicContent');
+  contentDiv.style.display = 'block';
+  contentDiv.innerHTML = '<h2><i class="bx bx-file"></i> Reports</h2><p>Coming soon...</p>';
+}
+
+function loadSettings() {
+  const contentDiv = document.getElementById('dynamicContent');
+  contentDiv.style.display = 'block';
+  contentDiv.innerHTML = '<h2><i class="bx bx-cog"></i> Settings</h2><p>Coming soon...</p>';
+}
+
+// Logout admin
+function logoutAdmin() {
+  clearAuth();
+  renderLoginScreen();
+}
+
+// Check OAuth callback on load
 function checkOAuthCallback() {
   const hash = window.location.hash;
   if (hash && hash.includes('access_token')) {
     handleAuthResponse(hash);
-    // Clean up URL
     window.history.replaceState({}, document.title, window.location.pathname);
   }
 }
 
-// Initialize on page load
-window.addEventListener('load', async () => {
-  console.log('Page loaded, checking for OAuth callback...');
+function addDashboardStyles() {
+  const styleId = 'admin-dashboard-styles';
+  if (document.getElementById(styleId)) return;
+
+  const styleEl = document.createElement('style');
+  styleEl.id = styleId;
+  styleEl.textContent = `
+    .container {
+      max-width: 100% !important;
+      height: 100vh !important;
+      border-radius: 0 !important;
+      padding: 0 !important;
+      background: #f4f6fa !important;
+      display: flex !important;
+      flex-direction: row !important;
+    }
+    
+    .sidebar {
+      width: 260px;
+      background: #8cb300;
+      color: #252525;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 4px 0 12px rgba(0, 0, 0, 0.06);
+      height: 100vh;
+      flex-shrink: 0;
+    }
+    
+    .sidebar-header {
+      padding: 28px 20px 20px;
+      font-size: 1.5rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid rgba(11, 11, 11, 0.08);
+    }
+    
+    .header-image {
+      max-width: 100%;
+      height: auto;
+    }
+    
+    .nav-menu {
+      flex: 1;
+      padding: 20px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 18px;
+      border-radius: 10px;
+      color: #222222;
+      font-weight: 500;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    
+    .nav-item i {
+      width: 22px;
+      font-size: 1.2rem;
+      text-align: center;
+    }
+    
+    .nav-item.active {
+      background: #164f00;
+      color: white;
+      font-weight: 600;
+    }
+    
+    .nav-item.active i { color: #ffffff; }
+    
+    .nav-item:not(.active):hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .sidebar-footer {
+      padding: 20px 18px 28px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.85rem;
+      color: #383838;
+    }
+    
+    .main-content {
+      flex: 1;
+      padding: 24px 28px 32px;
+      overflow-y: auto;
+      background: #8cb3006c;
+    }
+    
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    
+    .page-title h1 {
+      font-size: 1.9rem;
+      font-weight: 650;
+      color: #0f172a;
+    }
+    
+    .page-title p {
+      color: #475569;
+      font-size: 0.9rem;
+      margin-top: 4px;
+    }
+    
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: white;
+      padding: 8px 18px;
+      border-radius: 40px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+      border: 1px solid #e2e8f0;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+    
+    .stat-card {
+      background: white;
+      border-radius: 18px;
+      padding: 20px 18px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.02);
+      border: 1px solid #edf2f7;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .stat-info h3 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    
+    .stat-number {
+      font-size: 2.3rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    
+    .stat-icon {
+      background: #eef2ff;
+      color: #1e3a8a;
+      padding: 14px;
+      border-radius: 14px;
+      font-size: 1.7rem;
+    }
+    
+    .dashboard-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 20px 20px 24px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.02);
+      border: 1px solid #e9eef3;
+    }
+    
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+    
+    .card-header h2 {
+      font-size: 1.2rem;
+      font-weight: 650;
+      color: #0f172a;
+    }
+    
+    .badge {
+      background: #e0f2fe;
+      color: #0369a1;
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 30px;
+      font-weight: 600;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    th {
+      text-align: left;
+      padding: 12px 6px 10px 0;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #475569;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    
+    td {
+      padding: 12px 6px 12px 0;
+      font-size: 0.9rem;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    
+    .status.present { background: #dcfce7; color: #15803d; }
+    .status.away { background: #fef9c3; color: #854d0e; }
+    .status.offline { background: #f1f5f9; color: #475569; }
+    
+    .chart-container {
+      height: 240px;
+      position: relative;
+      margin-top: 10px;
+    }
+    
+    .btn-outline {
+      background: transparent;
+      border: 1px solid #cbd5e1;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #334155;
+      cursor: pointer;
+    }
+    
+    .btn-outline:hover {
+      background: #f1f5f9;
+    }
+    
+    .progress-bar {
+      width: 70px;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: #2563eb;
+    }
+    
+    .footer-note {
+      margin-top: 16px;
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+    
+    hr {
+      border: 0.5px solid #e9eef3;
+      margin: 16px 0 8px;
+    }
+    
+    @media (max-width: 1000px) {
+      .dashboard-row { grid-template-columns: 1fr; }
+      .container { flex-direction: column !important; }
+      .sidebar { width: 100%; height: auto; }
+    }
+  `;
+  document.head.appendChild(styleEl);
+}
+
+function generateMonthlyReport() {
+  alert('Salary report generation will be available soon.');
+}
+
+function exportAttendanceData() {
+  alert('Export functionality coming soon.');
+}
+
+function viewStaffList() {
+  alert('Staff list view coming soon.');
+}
+
+// Initialize
+window.addEventListener('load', () => {
   checkOAuthCallback();
-  await initApp();
+  initApp();
 });
 
-// For popup callback
+// Popup callback
 if (window.opener) {
   window.opener.postMessage({
     type: 'oauth-callback',
@@ -1214,173 +1053,318 @@ if (window.opener) {
   window.close();
 }
 
-// Show recent sessions popup
-async function showRecentSessions() {
-  if (!staffData || !staffData.name) return;
+// Open salary generation dialog
+async function openSalaryDialog() {
+  const btn = document.getElementById('generateReportBtn');
+  const originalHTML = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Loading...';
 
   try {
-    const response = await fetch(`${APPS_SCRIPT_URL}?action=getSessionHistory&name=${encodeURIComponent(staffData.name)}&limit=20`);
+    const roles = await fetchUniqueRoles();
+    const types = await fetchUniqueTypes();
+
+    const overlay = document.getElementById('modalOverlay');
+    const container = document.getElementById('modalContainer');
+
+    container.innerHTML = `
+    <div style="max-width:550px;width:100%;">
+      <h2 style="font-size:22px;color:#0f172a;margin-bottom:8px;">Generate Salary Report</h2>
+      <p style="color:#64748b;font-size:14px;margin-bottom:20px;">Sort and Filter out the following fields according to criteria to generate a full Staff(s) Salary Report.</p>
+      
+      <div style="margin-bottom:16px;">
+        <label style="font-weight:600;font-size:14px;display:block;margin-bottom:6px;">Filter By Role:</label>
+        <select id="filterRole" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;">
+          <option value="">Select by Role</option>
+          <option value="all">All Roles</option>
+          ${roles.map(r => `<option value="${r}">${r}</option>`).join('')}
+        </select>
+      </div>
+      
+      <div style="margin-bottom:16px;">
+        <label style="font-weight:600;font-size:14px;display:block;margin-bottom:6px;">Filter by Type:</label>
+        <select id="filterType" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;">
+          <option value="">Select by Type</option>
+          <option value="all">FT & PT</option>
+          ${types.map(t => `<option value="${t}">${t}</option>`).join('')}
+        </select>
+      </div>
+      
+      <div style="margin-bottom:16px;">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;cursor:pointer;">
+          <input type="radio" name="staffSelect" id="individualStaff" onchange="toggleIndividualStaff()">
+          Generate Salary Report Individually for:
+        </label>
+        <select id="selectStaff" disabled style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;margin-top:6px;background:#f1f5f9;">
+          <option value="">Select Staff</option>
+        </select>
+      </div>
+      
+      <div style="display:flex;gap:16px;margin-bottom:16px;">
+        <div style="flex:1;">
+          <label style="font-weight:600;font-size:14px;display:block;margin-bottom:6px;">Date From:</label>
+          <input type="date" id="dateFrom" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;">
+        </div>
+        <div style="flex:1;">
+          <label style="font-weight:600;font-size:14px;display:block;margin-bottom:6px;">Date To:</label>
+          <input type="date" id="dateTo" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;">
+        </div>
+      </div>
+      
+      <div style="margin-bottom:16px;">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
+          <input type="checkbox" id="sendToStaff">
+          <div><strong>Send Report to Staff via Email</strong><p style="font-size:12px;color:#64748b;margin-top:3px;">Send respective salary details to each staff via email.</p></div>
+        </label>
+      </div>
+      
+      <div style="margin-bottom:16px;">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
+          <input type="checkbox" id="sendCopy">
+          <div><strong>Send myself a Copy</strong><p style="font-size:12px;color:#64748b;margin-top:3px;">Send the entire generated salary report to myself through email.</p></div>
+        </label>
+      </div>
+      
+      <div style="background:#f0f7ff;border-left:4px solid #1a73e8;padding:12px;border-radius:8px;font-size:13px;color:#475569;margin:20px 0;">
+        <i class="fas fa-info-circle"></i> Clicking 'Generate Report' will generate a salary report within the given date range and staff filtering.
+      </div>
+      
+      <div style="display:flex;justify-content:flex-end;gap:12px;">
+        <button onclick="closeDialog()" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;padding:10px 20px;border-radius:10px;cursor:pointer;">Cancel</button>
+        <button onclick="generateSalaryReport()" style="background:#1a73e8;color:white;border:none;padding:10px 24px;border-radius:10px;font-weight:600;cursor:pointer;">Generate Report</button>
+      </div>
+    </div>
+   `;
+
+    overlay.classList.add('active');
+  } catch (e) {
+    showNotification('Failed to load filters', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHTML;
+  }
+}
+
+// Toggle individual staff selection
+function toggleIndividualStaff() {
+  const isIndividual = document.getElementById('individualStaff').checked;
+  const staffSelect = document.getElementById('selectStaff');
+  const filterRole = document.getElementById('filterRole');
+  const filterType = document.getElementById('filterType');
+
+  if (isIndividual) {
+    staffSelect.disabled = false;
+    staffSelect.style.background = 'white';
+    filterRole.disabled = true;
+    filterType.disabled = true;
+    fetchAllStaffNames().then(staff => {
+      staffSelect.innerHTML = '<option value="">Select Staff</option>' +
+        staff.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+    });
+  } else {
+    staffSelect.disabled = true;
+    staffSelect.style.background = '#f1f5f9';
+    staffSelect.innerHTML = '<option value="">Select Staff</option>';
+    filterRole.disabled = false;
+    filterType.disabled = false;
+  }
+}
+
+// Generate salary report
+async function generateSalaryReport() {
+  const filterRole = document.getElementById('filterRole').value;
+  const filterType = document.getElementById('filterType').value;
+  const isIndividual = document.getElementById('individualStaff').checked;
+  const selectStaff = document.getElementById('selectStaff').value;
+  const dateFrom = document.getElementById('dateFrom').value;
+  const dateTo = document.getElementById('dateTo').value;
+  const sendToStaff = document.getElementById('sendToStaff').checked;
+  const sendCopy = document.getElementById('sendCopy').checked;
+
+  if (!isIndividual && !filterRole) { showNotification('Please select a role filter before generating.', 'warning', 'Missing Selection'); return; }
+  if (!isIndividual && !filterType) { showNotification('Please select a type filter before generating.', 'warning', 'Missing Selection'); return; }
+  if (isIndividual && !selectStaff) { showNotification('Please select staff(s) before generating.', 'warning', 'Missing Selection'); return; }
+  if (!dateFrom || !dateTo) { showNotification('Please select a correct date range before generating.', 'warning', 'Missing Date Range'); return; }
+  if (new Date(dateFrom) > new Date(dateTo)) { showNotification('Date From must be before Date To', 'warning', 'Invalid Date Range'); return; }
+
+  closeDialog();
+  showProgressDialog();
+  updateProgress(10, 'Generating report...');
+
+  const formData = new URLSearchParams();
+  formData.append('action', 'generateSalaryReport');
+  formData.append('filterRole', filterRole || 'all');
+  formData.append('filterType', filterType || 'all');
+  formData.append('isIndividual', isIndividual ? 'true' : 'false');
+  formData.append('staffName', selectStaff);
+  formData.append('dateFrom', dateFrom);
+  formData.append('dateTo', dateTo);
+  formData.append('sendToStaff', sendToStaff ? 'true' : 'false');
+  formData.append('sendCopy', sendCopy ? 'true' : 'false');
+  formData.append('adminEmail', currentUser.email);
+
+  try {
+    updateProgress(5, 'Connecting to server...');
+
+    const response = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: formData });
+
+    updateProgress(15, 'Starting Salary Report Generation...');
+    await new Promise(r => setTimeout(r, 300));
+
+    updateProgress(25, 'Filtering staff members...');
+    await new Promise(r => setTimeout(r, 400));
+
+    updateProgress(35, 'Calculating attendance records...');
+    await new Promise(r => setTimeout(r, 500));
+
+    updateProgress(45, 'Processing salary calculations...');
+    await new Promise(r => setTimeout(r, 500));
+
+    updateProgress(55, 'Computing deductions and net pay...');
+    await new Promise(r => setTimeout(r, 400));
+
+    updateProgress(65, 'Hang on for a while...');
+    await new Promise(r => setTimeout(r, 400));
+
+    updateProgress(75, 'Generating PDF Salary Report...');
+    await new Promise(r => setTimeout(r, 600));
+
+    updateProgress(85, 'Cleaning up process...');
+    await new Promise(r => setTimeout(r, 400));
+
+    updateProgress(92, 'Sending report email...');
+    await new Promise(r => setTimeout(r, 400));
+
     const result = await response.json();
 
-    showSessionModal(result);
-  } catch (error) {
-    showCustomModal('Recent Sessions', '<p style="text-align:center;color:#64748b;">Failed to load sessions. Please try again.</p>');
-  }
-}
+    if (result.success) {
+      updateProgress(98, 'Finalizing report...');
+      await new Promise(r => setTimeout(r, 300));
+      updateProgress(100, 'Report generated successfully!');
 
-function showSessionModal(result) {
-  const overlay = document.createElement('div');
-  overlay.className = 'custom-modal-overlay';
-  overlay.style.cssText = `
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);
-    display: flex; justify-content: center; align-items: center;
-    z-index: 9999; animation: fadeIn 0.3s ease;
-  `;
-
-  let sessionsHtml = '';
-
-  if (result.success && result.sessions && result.sessions.length > 0) {
-    sessionsHtml = `
-      <div style="max-height: 400px; overflow-y: auto; margin: 15px 0;">
-        <table style="width:100%; border-collapse: collapse;">
-          <thead>
-            <tr style="background: #f1f5f9;">
-              <th style="padding: 10px; text-align: left; font-size: 13px; color: #475569; border-bottom: 2px solid #e2e8f0;">Date</th>
-              <th style="padding: 10px; text-align: left; font-size: 13px; color: #475569; border-bottom: 2px solid #e2e8f0;">Session</th>
-              <th style="padding: 10px; text-align: left; font-size: 13px; color: #475569; border-bottom: 2px solid #e2e8f0;">Time In</th>
-              <th style="padding: 10px; text-align: left; font-size: 13px; color: #475569; border-bottom: 2px solid #e2e8f0;">Time Out</th>
-              <th style="padding: 10px; text-align: left; font-size: 13px; color: #475569; border-bottom: 2px solid #e2e8f0;">Duration</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${result.sessions.map((s, idx) => `
-              <tr style="${idx % 2 === 0 ? 'background: #ffffff;' : 'background: #f8fafc;'}">
-                <td style="padding: 10px; font-size: 14px; color: #1e293b; border-bottom: 1px solid #e2e8f0;">${s.date}</td>
-                <td style="padding: 10px; font-size: 14px; color: #1e293b; border-bottom: 1px solid #e2e8f0;">Session ${s.sessionNumber}</td>
-                <td style="padding: 10px; font-size: 14px; color: #0f9d58; border-bottom: 1px solid #e2e8f0; font-weight: 600;">${s.timeIn}</td>
-                <td style="padding: 10px; font-size: 14px; color: #ea4335; border-bottom: 1px solid #e2e8f0; font-weight: 600;">${s.timeOut}</td>
-                <td style="padding: 10px; font-size: 14px; color: #1a73e8; border-bottom: 1px solid #e2e8f0; font-weight: 600;">${s.duration || 'N/A'}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    `;
-  } else {
-    sessionsHtml = `
-      <div style="text-align: center; padding: 30px;">
-        <i class='bx bx-folder-open' style="font-size: 50px; color: #94a3b8; margin-bottom: 10px;"></i>
-        <p style="color: #64748b; font-size: 15px;">No previous sessions found</p>
-      </div>
-    `;
-  }
-
-  overlay.innerHTML = `
-    <div style="background: white; border-radius: 20px; padding: 25px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; animation: slideUpModal 0.3s ease;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h3 style="font-family: var(--default-font); font-size: 20px; color: #1e293b;">
-          <i class='bx bx-history' style="color: #1a73e8; margin-right: 6px; vertical-align: middle;"></i>
-          Recent Sessions
-        </h3>
-        <button onclick="this.closest('.custom-modal-overlay').remove()" style="background: #f1f5f9; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-size: 18px; color: #64748b; display: flex; align-items: center; justify-content: center;">
-          <i class='bx bx-x'></i>
-        </button>
-      </div>
-      ${sessionsHtml}
-      <div style="text-align: center; margin-top: 15px;">
-        <button onclick="this.closest('.custom-modal-overlay').remove()" style="background: #1a73e8; color: white; border: none; padding: 10px 30px; border-radius: 10px; font-size: 14px; cursor: pointer; font-family: var(--default-font);">Close</button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(overlay);
-
-  // Close on overlay click
-  overlay.addEventListener('click', function (e) {
-    if (e.target === overlay) {
-      overlay.remove();
+      setTimeout(() => {
+        closeProgressDialog();
+        showNotification(
+          'Salary report generated successfully! Check Google Drive for the PDF file.',
+          'success',
+          'Report Generated',
+          6000
+        );
+      }, 800);
+    } else {
+      closeProgressDialog();
+      showNotification(result.error || 'Failed to generate report', 'error', 'Generation Failed');
     }
-  });
+  } catch (error) {
+    closeProgressDialog();
+    showNotification('Connection error: ' + error.message, 'error', 'Connection Error or timeout');
+  }
 }
 
-function showCustomModal(title, contentHtml) {
-  const overlay = document.createElement('div');
-  overlay.className = 'custom-modal-overlay';
-  overlay.style.cssText = `
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);
-    display: flex; justify-content: center; align-items: center;
-    z-index: 9999;
-  `;
+// Show progress dialog
+function showProgressDialog() {
+  const overlay = document.getElementById('modalOverlay');
+  const container = document.getElementById('modalContainer');
 
-  overlay.innerHTML = `
-    <div style="background: white; border-radius: 20px; padding: 25px; max-width: 400px; width: 90%; text-align: center;">
-      <h3 style="font-family: var(--default-font); font-size: 18px; color: #1e293b; margin-bottom: 15px;">${title}</h3>
-      ${contentHtml}
-      <button onclick="this.closest('.custom-modal-overlay').remove()" style="background: #1a73e8; color: white; border: none; padding: 10px 30px; border-radius: 10px; font-size: 14px; cursor: pointer; margin-top: 15px; font-family: var(--default-font);">Close</button>
+  container.innerHTML = `
+    <div style="text-align:center;padding:30px;min-width:350px;">
+      <i class="fas fa-cog fa-spin" style="font-size:40px;color:#1a73e8;margin-bottom:15px;"></i>
+      <h3 style="font-size:18px;color:#0f172a;margin-bottom:8px;">Generating Salary Report</h3>
+      <p id="progressText" style="color:#64748b;font-size:14px;margin-bottom:20px;">Initializing...</p>
+      <div style="width:100%;height:10px;background:#e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:10px;">
+        <div id="progressFill" style="height:100%;background:linear-gradient(90deg,#1a73e8,#4a90d9);border-radius:10px;transition:width 0.5s;width:0%;"></div>
+      </div>
+      <p id="progressPercent" style="font-size:28px;font-weight:700;color:#1a73e8;">0%</p>
     </div>
   `;
 
-  document.body.appendChild(overlay);
-
-  overlay.addEventListener('click', function (e) {
-    if (e.target === overlay) overlay.remove();
-  });
+  overlay.classList.add('active');
 }
 
-// Show my activity popup
-function showMyActivity() {
-  const todaySessions = `Today's activity for ${staffData.name}`;
-  // You can expand this with more detailed activity data
-  showPopup('My Activity', todaySessions);
+// Update progress
+function updateProgress(percent, text) {
+  const fill = document.getElementById('progressFill');
+  const percentEl = document.getElementById('progressPercent');
+  const textEl = document.getElementById('progressText');
+  if (fill) fill.style.width = percent + '%';
+  if (percentEl) percentEl.textContent = percent + '%';
+  if (textEl) textEl.textContent = text;
 }
 
-// Show popup modal
-function showPopup(title, content) {
-  const popup = document.createElement('div');
-  popup.className = 'popup-modal';
-  popup.innerHTML = `
-        <div class="popup-content">
-            <h3>${title}</h3>
-            <div style="margin: 20px 0;">${content}</div>
-            <button onclick="this.parentElement.parentElement.remove()" class="passkey-btn">Close</button>
-        </div>
-    `;
+function closeProgressDialog() {
+  document.getElementById('modalOverlay').classList.remove('active');
+}
 
-  popup.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: white;
-        padding: 30px;
-        border-radius: 20px;
-        z-index: 10001;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        animation: slideUpModal 0.3s ease;
-        min-width: 300px;
-        max-width: 90%;
-    `;
+// Poll report status
+async function pollReportStatus(jobId) {
+  let attempts = 0;
+  const maxAttempts = 30;
 
-  const overlay = document.createElement('div');
-  overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0,0,0,0.5);
-        z-index: 10000;
-    `;
+  while (attempts < maxAttempts) {
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
-  overlay.addEventListener('click', () => {
-    document.body.removeChild(popup);
-    document.body.removeChild(overlay);
-  });
+    const response = await fetch(`${APPS_SCRIPT_URL}?action=checkReportStatus&jobId=${jobId}`);
+    const result = await response.json();
 
-  document.body.appendChild(overlay);
-  document.body.appendChild(popup);
+    if (result.complete) {
+      updateProgress(100, 'Report generation complete!');
+      return;
+    }
+
+    updateProgress(30 + (attempts * 2), result.status || 'Processing...');
+    attempts++;
+  }
+}
+
+// Close dialog
+function closeDialog() {
+  document.getElementById('modalOverlay').classList.remove('active');
+}
+
+async function fetchUniqueRoles() {
+  try {
+    const url = APPS_SCRIPT_URL + '?action=getUniqueRoles';
+    console.log('Fetching roles from:', url);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    console.log('Roles response:', text);
+    const data = JSON.parse(text);
+    return data.success ? data.roles : [];
+  } catch (e) {
+    console.error('fetchUniqueRoles error:', e);
+    return [];
+  }
+}
+
+async function fetchUniqueTypes() {
+  try {
+    const url = APPS_SCRIPT_URL + '?action=getUniqueTypes';
+    console.log('Fetching types from:', url);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    console.log('Types response:', text);
+    const data = JSON.parse(text);
+    return data.success ? data.types : [];
+  } catch (e) {
+    console.error('fetchUniqueTypes error:', e);
+    return [];
+  }
+}
+
+async function fetchAllStaffNames() {
+  try {
+    const url = APPS_SCRIPT_URL + '?action=getAllStaffNames';
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    const data = JSON.parse(text);
+    return data.success ? data.staff : [];
+  } catch (e) {
+    console.error('fetchAllStaffNames error:', e);
+    return [];
+  }
 }
 
 function showNotification(message, type = 'info', title = '', duration = 5000) {
@@ -1403,23 +1387,13 @@ function showNotification(message, type = 'info', title = '', duration = 5000) {
 
   const notif = document.createElement('div');
   notif.className = 'custom-notification ' + type;
-  notif.style.cssText = `
-    position: fixed; top: 20px; right: 20px; z-index: 10001;
-    background: white; border-radius: 12px; padding: 16px 20px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-    display: flex; align-items: center; gap: 12px;
-    min-width: 300px; max-width: 450px;
-    animation: slideInRight 0.3s ease;
-    border-left: 4px solid ${type === 'success' ? '#8cb300' : type === 'error' ? '#ff1500' : type === 'warning' ? '#ffbb00' : '#0969e8'};
-  `;
-
   notif.innerHTML = `
-    <i class='bx ${icons[type]}' style="font-size: 24px; color: ${type === 'success' ? '#0f9d58' : type === 'error' ? '#ea4335' : type === 'warning' ? '#f4b400' : '#1a73e8'};"></i>
-    <div style="flex: 1;">
-      <div style="font-weight: 600; font-size: 14px; color: #1e293b;">${titles[type]}</div>
-      <div style="font-size: 13px; color: #64748b; margin-top: 2px;">${message}</div>
+    <i class='bx ${icons[type]}'></i>
+    <div class="notif-content">
+      <div class="notif-title">${titles[type]}</div>
+      <div class="notif-message">${message}</div>
     </div>
-    <i class='bx bx-x' onclick="this.parentElement.remove()" style="cursor: pointer; color: #94a3b8; font-size: 18px;"></i>
+    <i class='bx bx-x notif-close' onclick="this.parentElement.remove()"></i>
   `;
 
   document.body.appendChild(notif);
