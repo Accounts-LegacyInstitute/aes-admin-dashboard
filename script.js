@@ -1074,7 +1074,7 @@ async function openSalaryDialog() {
       
       <div style="margin-bottom:16px;">
         <label style="font-weight:600;font-size:14px;display:block;margin-bottom:6px;">Filter By Role:</label>
-        <div style="border:2px solid #e2e8f0;border-radius:10px;padding:12px;max-height:150px;overflow-y:auto;">
+        <div id="roleContainer" style="border:2px solid #e2e8f0;border-radius:10px;padding:12px;max-height:150px;overflow-y:auto;transition:all 0.3s;">
           <label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;">
             <input type="checkbox" id="role_all" checked onchange="toggleAllRoles()" style="cursor:pointer;">
             <span style="font-size:14px;">All Roles</span>
@@ -1156,14 +1156,28 @@ async function openSalaryDialog() {
 function toggleIndividualStaff() {
   const isIndividual = document.getElementById('individualStaff').checked;
   const staffSelect = document.getElementById('selectStaff');
-  const filterRole = document.getElementById('filterRole');
+  const roleContainer = document.getElementById('roleContainer');
   const filterType = document.getElementById('filterType');
 
   if (isIndividual) {
     staffSelect.disabled = false;
     staffSelect.style.background = 'white';
-    filterRole.disabled = true;
-    filterType.disabled = true;
+
+    // Disable role checkboxes (if container exists)
+    if (roleContainer) {
+      roleContainer.style.opacity = '0.5';
+      roleContainer.style.pointerEvents = 'none';
+      document.getElementById('role_all').disabled = true;
+      document.querySelectorAll('.role-checkbox').forEach(cb => cb.disabled = true);
+    }
+
+    // Disable type dropdown (if exists)
+    if (filterType) {
+      filterType.disabled = true;
+      filterType.style.background = '#f1f5f9';
+    }
+
+    // Load staff names
     fetchAllStaffNames().then(staff => {
       staffSelect.innerHTML = '<option value="">Select Staff</option>' +
         staff.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
@@ -1172,8 +1186,20 @@ function toggleIndividualStaff() {
     staffSelect.disabled = true;
     staffSelect.style.background = '#f1f5f9';
     staffSelect.innerHTML = '<option value="">Select Staff</option>';
-    filterRole.disabled = false;
-    filterType.disabled = false;
+
+    // Enable role checkboxes
+    if (roleContainer) {
+      roleContainer.style.opacity = '1';
+      roleContainer.style.pointerEvents = 'auto';
+      document.getElementById('role_all').disabled = false;
+      document.querySelectorAll('.role-checkbox').forEach(cb => cb.disabled = false);
+    }
+
+    // Enable type dropdown
+    if (filterType) {
+      filterType.disabled = false;
+      filterType.style.background = 'white';
+    }
   }
 }
 
