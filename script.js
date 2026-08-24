@@ -1074,11 +1074,18 @@ async function openSalaryDialog() {
       
       <div style="margin-bottom:16px;">
         <label style="font-weight:600;font-size:14px;display:block;margin-bottom:6px;">Filter By Role:</label>
-        <select id="filterRole" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;">
-          <option value="">Select by Role</option>
-          <option value="all">All Roles</option>
-          ${roles.map(r => `<option value="${r}">${r}</option>`).join('')}
-        </select>
+        <div style="border:2px solid #e2e8f0;border-radius:10px;padding:12px;max-height:150px;overflow-y:auto;">
+          <label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;">
+            <input type="checkbox" id="role_all" checked onchange="toggleAllRoles()" style="cursor:pointer;">
+            <span style="font-size:14px;">All Roles</span>
+          </label>
+          ${roles.map(r => `
+            <label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;">
+              <input type="checkbox" class="role-checkbox" value="${r}" onchange="updateRoleSelection()" style="cursor:pointer;">
+              <span style="font-size:14px;">${r}</span>
+            </label>
+          `).join('')}
+        </div>
       </div>
       
       <div style="margin-bottom:16px;">
@@ -1172,7 +1179,7 @@ function toggleIndividualStaff() {
 
 // Generate salary report
 async function generateSalaryReport() {
-  const filterRole = document.getElementById('filterRole').value;
+  const filterRole = getSelectedRoles();
   const filterType = document.getElementById('filterType').value;
   const isIndividual = document.getElementById('individualStaff').checked;
   const selectStaff = document.getElementById('selectStaff').value;
@@ -1365,6 +1372,30 @@ async function fetchAllStaffNames() {
     console.error('fetchAllStaffNames error:', e);
     return [];
   }
+}
+
+function toggleAllRoles() {
+  const allChecked = document.getElementById('role_all').checked;
+  document.querySelectorAll('.role-checkbox').forEach(cb => {
+    cb.checked = allChecked;
+  });
+}
+
+function updateRoleSelection() {
+  const roleCheckboxes = document.querySelectorAll('.role-checkbox');
+  const allChecked = Array.from(roleCheckboxes).every(cb => cb.checked);
+  document.getElementById('role_all').checked = allChecked;
+}
+
+function getSelectedRoles() {
+  const allChecked = document.getElementById('role_all').checked;
+  if (allChecked) return 'all';
+
+  const selected = [];
+  document.querySelectorAll('.role-checkbox:checked').forEach(cb => {
+    selected.push(cb.value);
+  });
+  return selected.join(',');
 }
 
 function showNotification(message, type = 'info', title = '', duration = 5000) {
