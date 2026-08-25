@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>You're Offline - Admin Dashboard | The Legacy Institute</title>
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .offline-container {
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 40px 30px;
+            max-width: 450px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.5s ease;
+        }
+
+        .offline-icon {
+            width: 100px;
+            height: 100px;
+            background: #f0f7e8;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            animation: pulse 2s infinite;
+        }
+
+        .offline-icon i {
+            font-size: 50px;
+            color: #8cb300;
+        }
+
+        h1 {
+            font-size: 28px;
+            color: #d8dade;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #658b64;
+            font-size: 15px;
+            margin-bottom: 25px;
+        }
+
+        .retry-btn {
+            background: #8cb300;
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .retry-btn:hover {
+            background: #6d8c00;
+        }
+
+        .brand-footer {
+            margin-top: 25px;
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        .brand-footer strong {
+            color: #8cb300;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="offline-container">
+        <div class="offline-icon"><i class='bx bx-wifi-off'></i></div>
+        <h1>Admin Dashboard Offline</h1>
+        <p class="subtitle">Unable to connect. Please check your internet connection.</p>
+        <button class="retry-btn" onclick="window.location.reload()">
+            <i class='bx bx-refresh'></i> Retry
+        </button>
+        <div class="brand-footer">
+            <strong>The Legacy Institute</strong><br>Admin Dashboard<br>Developed by Aaqib's DevDesk
+        </div>
+    </div>
+    <script>
+        window.addEventListener('online', () => window.location.reload());
+    </script>
+</body>
+
+</html>

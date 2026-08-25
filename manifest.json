@@ -1,0 +1,91 @@
+{
+    "name": "Legacy Institute - Admin Dashboard",
+    "short_name": "LI Generate Report",
+    "description": "Staff Management & Salary Report Generator for The Legacy Institute",
+    "id": "https://accounts-legacyinstitute.github.io/aes-admin-dashboard/",
+    "start_url": "https://accounts-legacyinstitute.github.io/aes-admin-dashboard/",
+    "scope": "https://accounts-legacyinstitute.github.io/aes-admin-dashboard/",
+    "display": "standalone",
+    "display_override": [
+        "fullscreen",
+        "standalone"
+    ],
+    "orientation": "portrait",
+    "background_color": "#8cb300",
+    "theme_color": "#8cb300",
+    "categories": [
+        "business",
+        "productivity",
+        "management"
+    ],
+    "icons": [
+        {
+            "src": "https://res.cloudinary.com/dhkswq6td/image/upload/v1787658070/li-admin-icon-72x72_jvik7l.png",
+            "sizes": "72x72",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "https://res.cloudinary.com/dhkswq6td/image/upload/v1787658070/li-admin-icon-96x96_bil4j8.png",
+            "sizes": "96x96",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "https://res.cloudinary.com/dhkswq6td/image/upload/v1787658070/li-admin-icon-144x144_ct4nxh.png",
+            "sizes": "128x128",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "https://res.cloudinary.com/dhkswq6td/image/upload/v1787658070/li-admin-icon-144x144_ct4nxh.png",
+            "sizes": "144x144",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "https://res.cloudinary.com/dhkswq6td/image/upload/v1787658070/li-admin-icon-192x192_ncvghb.png",
+            "sizes": "152x152",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "https://res.cloudinary.com/dhkswq6td/image/upload/v1787658070/li-admin-icon-192x192_ncvghb.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "https://res.cloudinary.com/dhkswq6td/image/upload/v1787658071/li-admin-icon-512x512_dweacc.png",
+            "sizes": "384x384",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "https://res.cloudinary.com/dhkswq6td/image/upload/v1787658071/li-admin-icon-512x512_dweacc.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "https://res.cloudinary.com/dhkswq6td/image/upload/v1787658754/li-admin-maskable-icon-512x512_k5wulg.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Generate Salary Report",
+            "short_name": "Salary",
+            "description": "Generate staff salary report",
+            "url": "https://accounts-legacyinstitute.github.io/aes-admin-dashboard/?action=salary",
+            "icons": [
+                {
+                    "src": "https://res.cloudinary.com/dhkswq6td/image/upload/v1787658070/li-admin-icon-96x96_bil4j8.png",
+                    "sizes": "96x96"
+                }
+            ]
+        }
+    ]
+}

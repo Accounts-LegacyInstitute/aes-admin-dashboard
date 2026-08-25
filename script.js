@@ -76,7 +76,7 @@ function renderLoginScreen() {
       <h1>Admin Dashboard</h1>
       <span class="admin-badge">🔒 Restricted Access</span>
       <p class="description">
-        Secure administration panel for managing staff attendance records, 
+        Secure administration panel for generating staff attendance records, 
         generating salary reports, and overseeing system operations.
       </p>
       <button class="google-login-btn" id="googleLoginBtn">
@@ -453,7 +453,7 @@ function showPasskeyVerification() {
     container.innerHTML = `
       <div class="modal-content">
         <h2 class="modal-title">Register a Passkey</h2>
-        <p class="modal-description">Secure your admin dashboard access with a device passkey. This additional verification layer ensures only you can access sensitive administrative functions and maintains enterprise-grade security.</p>
+        <p class="modal-description">Secure your admin dashboard access with a device passkey. This additional verification layer ensures only you can access sensitive administrative functions and maintain security.</p>
         
         <div class="animation-container" id="animationContainer">
           <img src="${PASSKEY_GIFS[0]}" alt="Passkey Setup" class="passkey-gif active" id="gif1">
@@ -610,7 +610,7 @@ function showUnauthorizedScreen() {
       <h2>Unauthorized Access</h2>
       <p class="description">
         This admin dashboard is restricted to authorized administrators only.
-        Your email (${currentUser.email}) does not have admin privileges.
+        Your email (${currentUser.email}) does not have admin privileges at The Legacy Institute.
       </p>
       <div class="button-group" style="margin-top: 20px;">
         <button class="btn btn-secondary" onclick="exitDashboard()">
@@ -653,11 +653,11 @@ function renderDashboard() {
         <img src="https://res.cloudinary.com/dhkswq6td/image/upload/v1765611889/Receipt_Format_hunxj7.png" 
              alt="Salary Report" style="width:120px;margin-bottom:20px;">
         <h2 style="font-family:var(--default-font);font-size:28px;color:#0f172a;margin-bottom:10px;">Generate Salary Report</h2>
-        <p style="color:#64748b;font-size:15px;line-height:1.6;margin-bottom:25px;">Generate reports and summarize staff salary details. Click 'Generate Report' below to generate a new Salary Report with different criteria applied.</p>
-        <button class="generate-report-btn" id="generateReportBtn" onclick="openSalaryDialog()" style="background:#1a73e8;color:white;border:none;padding:14px 30px;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
+        <p style="color:#8cb300;font-size:15px;line-height:1.6;margin-bottom:25px;">Generate reports and summarize staff salary details. Click 'Generate Report' below to generate a new Salary Report with different criteria applied.</p>
+        <button class="generate-report-btn" id="generateReportBtn" onclick="openSalaryDialog()" style="background:#8cb300;color:#ffffff;border:none;padding:14px 30px;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
           <i class="fas fa-file-invoice"></i> Generate Report
         </button>
-        <button class="logout-btn" onclick="logoutAdmin()" style="margin-top:20px;background:#ef4444;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px;">
+        <button class="logout-btn" onclick="logoutAdmin()" style="margin-top:20px;background:#ef4444;color:#ffffff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:16px;">
           <i class="bx bx-log-out"></i> Logout
         </button>
       </div>
@@ -1121,24 +1121,24 @@ async function openSalaryDialog() {
       <div style="margin-bottom:16px;">
         <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
           <input type="checkbox" id="sendToStaff">
-          <div><strong>Send Report to Staff via Email</strong><p style="font-size:12px;color:#64748b;margin-top:3px;">Send respective salary details to each staff via email.</p></div>
+          <div><strong>Send Report to Staff via Email</strong><p style="font-size:12px;color:#8cb300;margin-top:3px;">Send respective salary details to each staff via email.</p></div>
         </label>
       </div>
       
       <div style="margin-bottom:16px;">
         <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
           <input type="checkbox" id="sendCopy">
-          <div><strong>Send myself a Copy</strong><p style="font-size:12px;color:#64748b;margin-top:3px;">Send the entire generated salary report to myself through email.</p></div>
+          <div><strong>Send Full Copy to Admin</strong><p style="font-size:12px;color:#8cb300;margin-top:3px;">Send the entire generated salary report to myself (admin) through email.</p></div>
         </label>
       </div>
       
-      <div style="background:#f0f7ff;border-left:4px solid #1a73e8;padding:12px;border-radius:8px;font-size:13px;color:#475569;margin:20px 0;">
+      <div style="background:#bfcb94;border-left:4px solid #8cb300;padding:12px;border-radius:8px;font-size:13px;color:#475569;margin:20px 0;">
         <i class="fas fa-info-circle"></i> Clicking 'Generate Report' will generate a salary report within the given date range and staff filtering.
       </div>
       
       <div style="display:flex;justify-content:flex-end;gap:12px;">
         <button onclick="closeDialog()" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;padding:10px 20px;border-radius:10px;cursor:pointer;">Cancel</button>
-        <button onclick="generateSalaryReport()" style="background:#1a73e8;color:white;border:none;padding:10px 24px;border-radius:10px;font-weight:600;cursor:pointer;">Generate Report</button>
+        <button onclick="generateSalaryReport()" style="background:#8cb300;color:white;border:none;padding:10px 24px;border-radius:10px;font-weight:600;cursor:pointer;">Generate Report</button>
       </div>
     </div>
    `;
